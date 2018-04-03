@@ -20,9 +20,11 @@ class TDC:
         
         # Timebase
         self.timebase = self.dll_lib.TDC_getTimeBase()
+        self.timestamp_count = 10000
         
         # Activate
         rs = self.dll_lib.TDC_init(-1) # Accept every device
+        print(">>> Initialising module")
         self.switch(rs)
         
         # Select channels to use (id800 userguide)
@@ -33,16 +35,19 @@ class TDC:
         # 4 = 3           12 = 3,4
         # 5 = 1,3         13 = 1,3,4
         # 6 = 2,3         14 = 2,3,4
-        # 7 = 1,2,3       15 = 1,2,3,4 """
-        self.channels = 0xff # All
-        rs = self.dll_lib.TDC_enableChannels(self.channels)
+        # 7 = 1,2,3       15 = 1,2,3,4
+        
+        self.channels_enabled = 0xff # All
+        rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
+        print(">>> Enabling channels "+self.channels_enabled)
         self.switch(rs)
         
         # Histogram params
         self.hist_bincount = 40
         self.binwidth = 250
-        self.timestamp_count = 10000
+        
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,self.hist_bincount)
+        print(">>> Setting histogram parameters")
         self.switch(rs)
         
         
@@ -73,4 +78,33 @@ class TDC:
             print("????")
         return
     
-        
+    def run(self,filename="timestamps",filesuffix=".bin",output=1):
+        try:
+            timestamp_array = c_int*self.timestamp_count
+            timestamps = timestamp_array()
+            channels = timestamp_array()
+            valid = c_int()
+            
+            # Set the buffer size
+            self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
+            
+            # Start writing to file
+            text = str.encode(filename+filesuffix)
+            rs = self.dll_lib.TDC_writeTimestamps(text,c_int(output))
+            print(">>> Attempting to create file "+filename+filesuffix)
+            self.switch(rs)
+            
+            done = False
+            while (not done):
+                try:
+                    rs = self.dll_lib.TDC_getLastTimestamps(1,timestamps,channels,valid)
+                    print(">>> Check for experiment to finish")
+                    self.switch(rs)
+                    
+                except:
+            
+            # Close file
+            self.dll_lib.TDC_writeTimestamps()
+            print("hola")
+        except:
+            

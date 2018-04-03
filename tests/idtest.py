@@ -4,15 +4,16 @@ Created on Tue Mar 20 16:01:10 2018
 
 @author: Luis Villegas
 """
-from ctypes import CDLL, WinDLL,c_long,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte
+from ctypes import WinDLL,c_long,cast,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte
 from os import path,chdir
+from time import sleep
 
 dll_path_b = None
 
 if dll_path_b is not None:
     pass
 else:
-    dll_path = path.join(path.dirname(__file__),'tdcbase.dll')
+#    dll_path = path.join(path.dirname(__file__),'tdcbase.dll')
     dll_path = "C:\\Users\\Luis Villegas\\Documents\\Física\\LANMAC\\acqsys\\time-tagger\\tdcbase.dll"
 #dll_path = "tdcbase.dll"
 
@@ -60,9 +61,7 @@ switch(rs)
 hist_bincount = 40
 binwidth = 250
 timestamp_count = 10000
-rs = lib.TDC_setHistogramParams(binwidth,hist_bincount)
-print(">>> Setting histogram params")
-switch(rs)
+
 rs = lib.TDC_setTimestampBufferSize(timestamp_count)
 switch(rs)
 
@@ -71,16 +70,40 @@ switch(rs)
 rs = lib.TDC_setCoincidenceWindow(100) # 8ns
 switch(rs)
 
-argc = 2
-argv = "test"
+channelMask = c_ubyte()
+coincWin = c_uint()
+expTime = c_uint()
 
-if (argc > 1 and argv!="gen"):
-    testchan = 3
-    sgperiod = 4 #4*20ns
-    sgburst = 3
-    distburst = 10 #10*80ns
-    rs = lib.TDC_configureSelftest(3,4,3,10)
-    switch(rs)
+lib.TDC_getDeviceParams.argtypes = [c_int,c_int,c_int]
 
+lib.TDC_getDeviceParams(channelMask,coincWin,expTime)
+
+test_channel = 3
+signal_period = 4 #4*20ns = 80ns
+signal_burst = 3
+burst_distance = 10 #10*80ns = 800ns
+
+rs = lib.TDC_configureSelfTest(test_channel,signal_period,
+                               signal_burst,burst_distance)
+print(">>> Setting up self test")
+switch(rs)
+
+print(">>> Collecting")
+sleep(5)
+lib.TDC_freezeBuffers(1)
+
+array_type = c_int*timestamp_count
+
+timestamps = array_type()
+timestamps_ptr = cast(timestamps, POINTER(c_int))
+chans = array_type()
+chans_ptr = cast(timestamps, POINTER(c_int))
+valid = c_int()
+valid_ptr = cast(timestamps, POINTER(c_int))
+
+lib.TDC_getLastTimestamps.argtypes = [c_int, POINTER(c_int),
+                                      POINTER(c_int), POINTER(c_int)]
+rs = lib.TDC_getLastTimestamps(1,timestamps_ptr,chans_ptr,valid_ptr)
+switch(rs)
 
 lib.TDC_deInit()
