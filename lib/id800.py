@@ -15,7 +15,8 @@ class TDC:
         if libpath is not None:
             self.libpath = libpath
         else:
-            self.libpath = os.path.join(os.path.dirname(__file__),'tdcbase.dll')
+            self.libpath = os.path.join(os.path.dirname(__file__),
+                                        'tdcbase.dll')
         self.dll_lib = WinDLL(self.libpath)
         
         # Timebase
@@ -42,16 +43,18 @@ class TDC:
         print(">>> Enabling channels "+self.channels_enabled)
         self.switch(rs)
         
-        # Histogram params
+        # Parameters
         self.hist_bincount = 40
         self.binwidth = 250
+        timestamp_array = c_int*self.timestamp_count
+        self.timestamps = timestamp_array()
+        self.channels = timestamp_array()
+        self.valid = c_int()
         
-        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,self.hist_bincount)
+        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
+                                                 self.hist_bincount)
         print(">>> Setting histogram parameters")
         self.switch(rs)
-        
-        
-        
         
     def switch(rs):
         if rs == 0: #TDC_Ok
@@ -78,13 +81,11 @@ class TDC:
             print("????")
         return
     
+    def experiment_window(self,sleep_time=1000):
+        sleep(sleep_time/1000.0)
+    
     def run(self,filename="timestamps",filesuffix=".bin",output=1):
-        try:
-            timestamp_array = c_int*self.timestamp_count
-            timestamps = timestamp_array()
-            channels = timestamp_array()
-            valid = c_int()
-            
+        try:            
             # Set the buffer size
             self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
             
@@ -94,17 +95,28 @@ class TDC:
             print(">>> Attempting to create file "+filename+filesuffix)
             self.switch(rs)
             
+            # Experiment window
+            self.experiment_window()
+            
+            # Check if experiment has ended (not sure if needed)
             done = False
-            while (not done):
+            attempts = 0
+            while (not done) and attempts<100:
                 try:
-                    rs = self.dll_lib.TDC_getLastTimestamps(1,timestamps,channels,valid)
+                    done = True
+                    rs = self.dll_lib.TDC_getLastTimestamps(1,self.timestamps,
+                                                            self.channels,
+                                                            self.valid)
                     print(">>> Check for experiment to finish")
                     self.switch(rs)
                     
                 except:
+                    done = False
+                    attempts += 1
+                    print(">>> Something failed, trying again")
             
             # Close file
             self.dll_lib.TDC_writeTimestamps()
-            print("hola")
         except:
+            print(">>> Couldn't run")
             
