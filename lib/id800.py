@@ -5,7 +5,7 @@ Created on Tue Mar 20 15:08:31 2018
 @author: Luis Villegas
 """
 
-from ctypes import WinDLL,c_long,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte
+from ctypes import WinDLL,c_long,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte,cast
 from time import sleep
 import os
 
@@ -22,6 +22,15 @@ class TDC:
         # Timebase
         self.timebase = self.dll_lib.TDC_getTimeBase()
         self.timestamp_count = 10000
+        
+        # C arrays and pointers (is this even done right?)
+        c_array = c_int*self.timestamp_count
+        timestamps = c_array()
+        self.timestamps_ptr = cast(timestamps,POINTER(c_array))
+        channels = c_array()
+        self.channels_ptr = cast(channels,POINTER(c_array))
+        valid = c_int()
+        self.valid_ptr = cast(valid,POINTER(c_int))
         
         # Activate
         rs = self.dll_lib.TDC_init(-1) # Accept every device
@@ -43,18 +52,17 @@ class TDC:
         print(">>> Enabling channels "+self.channels_enabled)
         self.switch(rs)
         
-        # Parameters
+        # Histogram TBD
         self.hist_bincount = 40
         self.binwidth = 250
-        timestamp_array = c_int*self.timestamp_count
-        self.timestamps = timestamp_array()
-        self.channels = timestamp_array()
-        self.valid = c_int()
         
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
                                                  self.hist_bincount)
         print(">>> Setting histogram parameters")
         self.switch(rs)
+        
+    def __del__(self):
+        self.dll_lib.TDC_deInit()
         
     def switch(rs):
         if rs == 0: #TDC_Ok
@@ -81,10 +89,28 @@ class TDC:
             print("????")
         return
     
+    def getLastTimestamps(self):
+        """ Not working as intended, how do I pass pointers to arrays as
+        arguments to a function without trying to overwrite memory? No idea
+        """
+        self.dll_lib.TDC_getLastTimestamps.argtypes = [c_int, POINTER(c_int),
+                                      POINTER(c_int), POINTER(c_int)]
+        rs = self.dll_lib.TDC_getLastTimestamps(1,self.timestamps_ptr,
+                                                self.channels_ptr,
+                                                self.valid_ptr)
+        print(">>> Getting last {} timestamps".format(self.timestamp_count))
+        self.switch(rs)
+        if not rs:
+            print("Timestamps: buffered {}".format(self.valid_ptr))
+    
     def experiment_window_sleep(self,sleep_time=1000):
         sleep(sleep_time/1000.0)
         
     def experiment_window_signal(self):
+        """ TBD - Get signal from LabJack control system, how?
+        """
+    
+    def getHistogram(self):
         """ TBD
         """
     
