@@ -81,10 +81,18 @@ class TDC:
             print("????")
         return
     
-    def experiment_window(self,sleep_time=1000):
+    def experiment_window_sleep(self,sleep_time=1000):
         sleep(sleep_time/1000.0)
+        
+    def experiment_window_signal(self):
+        """ TBD
+        """
     
     def run(self,filename="timestamps",filesuffix=".bin",output=1):
+        try:
+            self.dll_lib.TDC_writeTimestamps()
+        except:
+            print(">>> Starting new run")
         try:            
             # Set the buffer size
             self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
@@ -94,29 +102,7 @@ class TDC:
             rs = self.dll_lib.TDC_writeTimestamps(text,c_int(output))
             print(">>> Attempting to create file "+filename+filesuffix)
             self.switch(rs)
-            
-            # Experiment window
-            self.experiment_window()
-            
-            # Check if experiment has ended (not sure if needed)
-            done = False
-            attempts = 0
-            while (not done) and attempts<100:
-                try:
-                    done = True
-                    rs = self.dll_lib.TDC_getLastTimestamps(1,self.timestamps,
-                                                            self.channels,
-                                                            self.valid)
-                    print(">>> Check for experiment to finish")
-                    self.switch(rs)
-                    
-                except:
-                    done = False
-                    attempts += 1
-                    print(">>> Something failed, trying again")
-            
-            # Close file
-            self.dll_lib.TDC_writeTimestamps()
+        
         except:
             print(">>> Couldn't run")
             
