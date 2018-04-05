@@ -49,61 +49,70 @@ def switch(rs):
 
 timebase = lib.TDC_getTimebase()
 print("Timebase {} ps".format(timebase))
+print("=== Init ===")
 rs = lib.TDC_init(-1)
 
 switch(rs)
 channels = 0xff
 
 #print("Enabling channel %i",channels)
+print(">>> Enabling chans")
 rs = lib.TDC_enableChannels(channels)
 switch(rs)
 
 hist_bincount = 40
 binwidth = 250
 timestamp_count = 10000
-
+print(">>> Buffer size")
 rs = lib.TDC_setTimestampBufferSize(timestamp_count)
 switch(rs)
-
+print(">>> Exp time for coincidences")
 rs = lib.TDC_setExposureTime(100)
 switch(rs)
-rs = lib.TDC_setCoincidenceWindow(100) # 8ns
+print(">>> Coincidence window")
+rs = lib.TDC_setCoincidenceWindow(50) # 8ns
 switch(rs)
-
-channelMask = c_ubyte()
+############################# setting args
+channelMask = c_uint()
 coincWin = c_uint()
 expTime = c_uint()
 
-lib.TDC_getDeviceParams.argtypes = [c_int,c_int,c_int]
-
-lib.TDC_getDeviceParams(channelMask,coincWin,expTime)
-
-test_channel = 3
-signal_period = 4 #4*20ns = 80ns
-signal_burst = 3
-burst_distance = 10 #10*80ns = 800ns
-
-rs = lib.TDC_configureSelfTest(test_channel,signal_period,
-                               signal_burst,burst_distance)
-print(">>> Setting up self test")
+#channelMask_ptr = cast(channelMask,POINTER(c_uint))
+#coincWin_ptr = cast(coincWin,POINTER(c_uint))
+#expTime_ptr = cast(expTime,POINTER(c_uint))
+                                                
+#rs = lib.TDC_getDeviceParams.argtypes = [POINTER(c_int),POINTER(c_int),POINTER(c_int)]
+#switch(rs)
+############################## byref
+print(">>> Get device params")
+rs = lib.TDC_getDeviceParams(byref(channelMask),byref(coincWin),byref(expTime))
 switch(rs)
-
-print(">>> Collecting")
-sleep(5)
-lib.TDC_freezeBuffers(1)
-
-array_type = c_int*timestamp_count
-
-timestamps = array_type()
-timestamps_ptr = cast(timestamps, POINTER(c_int))
-chans = array_type()
-chans_ptr = cast(timestamps, POINTER(c_int))
-valid = c_int()
-valid_ptr = cast(timestamps, POINTER(c_int))
-
-lib.TDC_getLastTimestamps.argtypes = [c_int, POINTER(c_int),
-                                      POINTER(c_int), POINTER(c_int)]
-rs = lib.TDC_getLastTimestamps(1,timestamps_ptr,chans_ptr,valid_ptr)
-switch(rs)
+#test_channel = 3
+#signal_period = 4 #4*20ns = 80ns
+#signal_burst = 3
+#burst_distance = 10 #10*80ns = 800ns
+#
+#rs = lib.TDC_configureSelfTest(test_channel,signal_period,
+#                               signal_burst,burst_distance)
+#print(">>> Setting up self test")
+#switch(rs)
+#
+#print(">>> Collecting")
+#sleep(5)
+#lib.TDC_freezeBuffers(1)
+#
+#array_type = c_int*timestamp_count
+#
+#timestamps = array_type()
+#timestamps_ptr = cast(timestamps, POINTER(c_int))
+#chans = array_type()
+#chans_ptr = cast(timestamps, POINTER(c_int))
+#valid = c_int()
+#valid_ptr = cast(timestamps, POINTER(c_int))
+#
+#lib.TDC_getLastTimestamps.argtypes = [c_int, POINTER(c_int),
+#                                      POINTER(c_int), POINTER(c_int)]
+#rs = lib.TDC_getLastTimestamps(1,timestamps_ptr,chans_ptr,valid_ptr)
+#switch(rs)
 
 lib.TDC_deInit()
