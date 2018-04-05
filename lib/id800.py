@@ -8,6 +8,7 @@ Created on Tue Mar 20 15:08:31 2018
 from ctypes import WinDLL,c_long,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte,cast
 from time import sleep
 import os
+import config
 
 
 class TDC:
@@ -21,16 +22,17 @@ class TDC:
         
         # Timebase
         self.timebase = self.dll_lib.TDC_getTimeBase()
-        self.timestamp_count = 10000
+        self.timestamp_count = config.timestamp_count
+        # Device Params
+        self.channelMask = c_int()
+        self.coincWin = c_int()
+        self.expTime = c_int()
         
-        # C arrays and pointers (is this even done right?)
         c_array = c_int*self.timestamp_count
-        timestamps = c_array()
-        self.timestamps_ptr = cast(timestamps,POINTER(c_array))
-        channels = c_array()
-        self.channels_ptr = cast(channels,POINTER(c_array))
-        valid = c_int()
-        self.valid_ptr = cast(valid,POINTER(c_int))
+        self.timestamps = c_array()
+        self.channels = c_array()
+        self.valid = c_int()
+        
         
         # Activate
         rs = self.dll_lib.TDC_init(-1) # Accept every device
@@ -47,14 +49,20 @@ class TDC:
         # 6 = 2,3         14 = 2,3,4
         # 7 = 1,2,3       15 = 1,2,3,4
         
-        self.channels_enabled = 0xff # All
+        self.channels_enabled = config.channels_enabled # All
         rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
         print(">>> Enabling channels "+self.channels_enabled)
         self.switch(rs)
         
+        print(">>> Setting coincidence window and exposure time")
+        rs = self.dll_lib.TDC_setCoincidenceWindow(self.coincWin)
+        self.switch(rs)
+        rs = self.dll_lib.TDC_setExposureTime(self.expTime)
+        self.switch(rs)
+        
         # Histogram TBD
-        self.hist_bincount = 40
-        self.binwidth = 250
+        self.hist_bincount = config.hist_bincount
+        self.binwidth = config.binwidth
         
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
                                                  self.hist_bincount)
@@ -89,20 +97,17 @@ class TDC:
             print("????")
         return
     
+    def getDeviceParams(self):
+        return self.dll_lib.TDC_getDeviceParams(byref(self.channelMask),
+                                                byref(self.coincWin),
+                                                byref(self.expTime))
+    
     def getLastTimestamps(self):
-        """ Not working as intended, how do I pass pointers to arrays as
-        arguments to a function without trying to overwrite memory? No idea
+        """ WIP
         """
-        self.dll_lib.TDC_getLastTimestamps.argtypes = [c_int, POINTER(c_int),
-                                      POINTER(c_int), POINTER(c_int)]
-        rs = self.dll_lib.TDC_getLastTimestamps(1,self.timestamps_ptr,
-                                                self.channels_ptr,
-                                                self.valid_ptr)
-        
-        # Using byref
-#        rs = self.dll_lib.TDC_getLastTimestamps(1,byref(self.timestamps),
-#                                                byref(self.channels),
-#                                                byref(self.valid))
+        rs = self.dll_lib.TDC_getLastTimestamps(1,byref(self.timestamps),
+                                                byref(self.channels),
+                                                byref(self.valid))
         
         print(">>> Getting last {} timestamps".format(self.timestamp_count))
         self.switch(rs)
