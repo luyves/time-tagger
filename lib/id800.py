@@ -98,6 +98,12 @@ class TDC:
         rs = self.dll_lib.TDC_getLastTimestamps(1,self.timestamps_ptr,
                                                 self.channels_ptr,
                                                 self.valid_ptr)
+        
+        # Using byref
+#        rs = self.dll_lib.TDC_getLastTimestamps(1,byref(self.timestamps),
+#                                                byref(self.channels),
+#                                                byref(self.valid))
+        
         print(">>> Getting last {} timestamps".format(self.timestamp_count))
         self.switch(rs)
         if not rs:
