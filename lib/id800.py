@@ -74,9 +74,12 @@ class TDC:
         self.switch(rs)
         
     def close(self):
-        self.dll_lib.TDC_deInit()
+        rs = self.dll_lib.TDC_deInit()
+        return self.switch(rs)
         
     def switch(self,rs):
+        """ For debugging, refer to tdcbase.h
+        """
         if rs == 0: #TDC_Ok
             print("Success")
         elif rs == -1: #TDC_Error
@@ -101,6 +104,13 @@ class TDC:
             print("????")
         return
     
+    def selfTest(self,test_channel,sg_period,sg_burst,burst_dist):
+        rs = self.dll_lib.TDC_configureSelfTest(test_channel,
+                                                sg_period,
+                                                sg_burst,
+                                                burst_dist)
+        return self.switch(rs)
+    
     def getDeviceParams(self):
         return self.dll_lib.TDC_getDeviceParams(byref(self.channelMask),
                                                 byref(self.coincWin),
@@ -118,29 +128,48 @@ class TDC:
         if not rs:
             print("Timestamps: buffered {}".format(str(self.valid_ptr)))
     
-    def experiment_window_sleep(self,sleep_time=1000):
+    def experimentWindowSleep(self,sleep_time=1000):
+        """ In milliseconds. Useless I think.
+        """
         sleep(sleep_time/1000.0)
         
-    def experiment_window_signal(self):
-        """ TBD - Get signal from LabJack control system, how?
+    def experimenWindowSignal(self):
+        """ TBD - Get signal from LabJack control system, using signals
+        I think I have to write a new class for the listener
         """
-    
+            
     def getHistogram(self):
         """ TBD
         """
     
-    def run(self,filename="timestamps",filesuffix=".bin",output=1):
-        try:
-            self.dll_lib.TDC_writeTimestamps()
-        except:
-            print(">>> Starting new run")
-        try:            
-            # Start writing to file
-            text = str.encode(filename+filesuffix)
-            rs = self.dll_lib.TDC_writeTimestamps(text,c_int(output))
-            print(">>> Attempting to create file "+filename+filesuffix)
-            self.switch(rs)
+    def run(self,signal,filename="timestamps",filesuffix=".bin",out=1):
+        """ Idea for signal: index of experiment run = 0,1,2,3,...,n
+        If first, only open new file.
+        If last, only close file.
+        Else, close last and open new file.
         
-        except:
-            print(">>> Couldn't run")
+        WIP until I know how to implement signalling from LabJack, but it
+        should pretty much be something like this. Can't work much more until
+        I know how.
+        """
+        if signal == ("last"): # If last: close and end call
+            try:
+                self.dll_lib.TDC_writeTimestamps(None,c_int(out))
+            except:
+                print(">>> Couldn't initiate run")
+        else: # If not last: check if first or else
+            if signal == ("else"): # If else: close then open
+                try:
+                    self.dll_lib.TDC_writeTimestamps(None,c_int(out))
+                except:
+                    print(">>> Couldn't initiate run")
+            # If first: ignore closing and only open
+            try: 
+                # Start writing to file
+                text = str.encode(filename+filesuffix)
+                rs = self.dll_lib.TDC_writeTimestamps(text,c_int(out))
+                print(">>> Writing to file "+filename+filesuffix)
+                self.switch(rs)                    
+            except:
+                print(">>> Couln't initiate run")
             
