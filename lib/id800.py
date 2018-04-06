@@ -5,25 +5,27 @@ Created on Tue Mar 20 15:08:31 2018
 @author: Luis Villegas
 """
 
-from ctypes import WinDLL,c_long,create_string_buffer,POINTER,byref,c_int,c_uint,c_ubyte,cast
+from ctypes import WinDLL,byref,c_int
 from time import sleep
-import os
+from os import path
 import config
 
 
 class TDC:
     def __init__(self, libpath = None):
         if libpath is not None:
-            self.libpath = libpath
+            self._libpath = libpath
         else:
-            self.libpath = os.path.join(os.path.dirname(__file__),
+            self._libpath = path.join(path.dirname(__file__),
                                         'tdcbase.dll')
-        self.dll_lib = WinDLL(self.libpath)
+        self.dll_lib = WinDLL(self._libpath)
         
+
         # Timebase
-        self.timebase = self.dll_lib.TDC_getTimeBase()
+        self.timebase = self.dll_lib.TDC_getTimebase()
         self.timestamp_count = config.timestamp_count
-        # Device Params
+        
+        # Variable declarations
         self.channelMask = c_int()
         self.coincWin = c_int()
         self.expTime = c_int()
@@ -36,7 +38,7 @@ class TDC:
         
         # Activate
         rs = self.dll_lib.TDC_init(-1) # Accept every device
-        print(">>> Initialising module")
+        print(">>> Init module")
         self.switch(rs)
         
         # Select channels to use (id800 userguide)
@@ -51,7 +53,7 @@ class TDC:
         
         self.channels_enabled = config.channels_enabled # All
         rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
-        print(">>> Enabling channels "+self.channels_enabled)
+        print(">>> Enabling channels (byte-wise)"+str(self.channels_enabled))
         self.switch(rs)
         
         print(">>> Setting coincidence window and exposure time")
@@ -59,6 +61,8 @@ class TDC:
         self.switch(rs)
         rs = self.dll_lib.TDC_setExposureTime(self.expTime)
         self.switch(rs)
+        # Set the buffer size
+        self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
         
         # Histogram TBD
         self.hist_bincount = config.hist_bincount
@@ -69,10 +73,10 @@ class TDC:
         print(">>> Setting histogram parameters")
         self.switch(rs)
         
-    def __del__(self):
+    def close(self):
         self.dll_lib.TDC_deInit()
         
-    def switch(rs):
+    def switch(self,rs):
         if rs == 0: #TDC_Ok
             print("Success")
         elif rs == -1: #TDC_Error
@@ -109,10 +113,10 @@ class TDC:
                                                 byref(self.channels),
                                                 byref(self.valid))
         
-        print(">>> Getting last {} timestamps".format(self.timestamp_count))
+        print(">>> Getting last {} timestamps".format(str(self.timestamp_count)))
         self.switch(rs)
         if not rs:
-            print("Timestamps: buffered {}".format(self.valid_ptr))
+            print("Timestamps: buffered {}".format(str(self.valid_ptr)))
     
     def experiment_window_sleep(self,sleep_time=1000):
         sleep(sleep_time/1000.0)
@@ -131,9 +135,6 @@ class TDC:
         except:
             print(">>> Starting new run")
         try:            
-            # Set the buffer size
-            self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
-            
             # Start writing to file
             text = str.encode(filename+filesuffix)
             rs = self.dll_lib.TDC_writeTimestamps(text,c_int(output))
