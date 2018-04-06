@@ -9,3 +9,5 @@ shared libraries you need:
 * tdcbase.dll
 * tdcbase.lib
 * libusb0.dll (32 bit)
+
+if opening a TDC object don't forget to close connection to the id800 with TCD.close()
