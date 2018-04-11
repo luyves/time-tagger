@@ -5,7 +5,7 @@ Created on Tue Mar 20 15:08:31 2018
 @author: Luis Villegas
 """
 
-from ctypes import WinDLL,byref,c_int
+from ctypes import WinDLL,byref,c_int,c_int8,c_int32,c_int64
 from time import sleep
 from os import path
 import config
@@ -30,10 +30,12 @@ class TDC:
         self.coincWin = c_int()
         self.expTime = c_int()
         
-        c_array = c_int*self.timestamp_count
-        self.timestamps = c_array()
-        self.channels = c_array()
-        self.valid = c_int()
+        c_array8 = c_int8*self.timestamp_count
+#        c_array32 = c_int32*self.timestamp_count
+        c_array64 = c_int64*self.timestamp_count
+        self.timestamps = c_array64()
+        self.channels = c_array8()
+        self.valid = c_int32()
         
         
         # Activate
@@ -53,7 +55,7 @@ class TDC:
         
         self.channels_enabled = config.channels_enabled # All
         rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
-        print(">>> Enabling channels (byte-wise)"+str(self.channels_enabled))
+        print(">>> Enabling channels (byte-wise) "+str(self.channels_enabled))
         self.switch(rs)
         
         print(">>> Setting coincidence window and exposure time")
@@ -105,7 +107,7 @@ class TDC:
         return
     
     def selfTest(self,test_channel,sg_period,sg_burst,burst_dist):
-        rs = self.dll_lib.TDC_configureSelfTest(test_channel,
+        rs = self.dll_lib.TDC_configureSelftest(test_channel,
                                                 sg_period,
                                                 sg_burst,
                                                 burst_dist)
@@ -116,9 +118,11 @@ class TDC:
                                                 byref(self.coincWin),
                                                 byref(self.expTime))
     
-    def getLastTimestamps(self):
+    def getLastTimestamps(self,freeze=True,output=False,*args):
         """ WIP
         """
+        if freeze:
+            self.dll_lib.TDC_freezeBuffers(1)
         rs = self.dll_lib.TDC_getLastTimestamps(1,byref(self.timestamps),
                                                 byref(self.channels),
                                                 byref(self.valid))
@@ -126,7 +130,20 @@ class TDC:
         print(">>> Getting last {} timestamps".format(str(self.timestamp_count)))
         self.switch(rs)
         if not rs:
-            print("Timestamps: buffered {}".format(str(self.valid_ptr)))
+            print("Timestamps: buffered {}".format(str(self.valid)))
+        if output:
+            self.saveTimestamps(*args)
+        if freeze:
+            self.dll_lib.TDC_freezeBuffers(0)
+            
+    def saveTimestamps(self,filenamet="timestamps",filenamec="channels",
+                       filesuffix=".bin"):
+        timefile = open(filenamet+filesuffix,"w")
+        timefile.write(self.timestamps)
+        timefile.close()
+        channelfile = open(filenamet+filesuffix,"w")
+        channelfile.write(self.channels)
+        channelfile.close()
     
     def experimentWindowSleep(self,sleep_time=1000):
         """ In milliseconds. Useless I think.
