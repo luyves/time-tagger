@@ -5,7 +5,7 @@ Created on Tue Mar 20 15:08:31 2018
 @author: Luis Villegas
 """
 
-from ctypes import WinDLL,byref,c_int,c_int8,c_int32,c_int64
+from ctypes import WinDLL,byref,c_int,c_int8,c_int32,c_int64,c_double
 from time import sleep
 from os import path
 import config
@@ -22,11 +22,12 @@ class TDC:
         
 
         # Timebase
-        self.timebase = self.dll_lib.TDC_getTimebase()
+        self.timebase = c_double()
+        self.timebase.value = self.dll_lib.TDC_getTimebase()
         self.timestamp_count = config.timestamp_count
         
         # Variable declarations
-        self.channelMask = c_int()
+        self.channelMask = c_int8()
         self.coincWin = c_int()
         self.expTime = c_int()
         
@@ -106,6 +107,9 @@ class TDC:
             print("????")
         return
     
+    def getTimebase(self):
+        print(self.timebase.value)
+    
     def selfTest(self,test_channel,sg_period,sg_burst,burst_dist):
         rs = self.dll_lib.TDC_configureSelftest(test_channel,
                                                 sg_period,
@@ -130,19 +134,23 @@ class TDC:
         print(">>> Getting last {} timestamps".format(str(self.timestamp_count)))
         self.switch(rs)
         if not rs:
-            print("Timestamps: buffered {}".format(str(self.valid)))
+            print("Timestamps: buffered {}".format(str(self.valid.value)))
         if output:
             self.saveTimestamps(*args)
+            print("Saving to file...")
         if freeze:
             self.dll_lib.TDC_freezeBuffers(0)
             
     def saveTimestamps(self,filenamet="timestamps",filenamec="channels",
                        filesuffix=".bin"):
         timefile = open(filenamet+filesuffix,"w")
-        timefile.write(self.timestamps)
+        for item in self.timestamps:
+            timefile.write("%s\n" % item)
         timefile.close()
-        channelfile = open(filenamet+filesuffix,"w")
-        channelfile.write(self.channels)
+        
+        channelfile = open(filenamec+filesuffix,"w")
+        for item in self.channels:
+            channelfile.write("%s\n" % item)
         channelfile.close()
     
     def experimentWindowSleep(self,sleep_time=1000):
