@@ -32,7 +32,6 @@ class TDC:
         self.expTime = c_int()
         
         c_array8 = c_int8*self.timestamp_count
-#        c_array32 = c_int32*self.timestamp_count
         c_array64 = c_int64*self.timestamp_count
         self.timestamps = c_array64()
         self.channels = c_array8()
@@ -64,17 +63,11 @@ class TDC:
         self.switch(rs)
         rs = self.dll_lib.TDC_setExposureTime(self.expTime)
         self.switch(rs)
+        
         # Set the buffer size
         self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
         
-        # Histogram TBD
-        self.hist_bincount = config.hist_bincount
-        self.binwidth = config.binwidth
-        
-        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
-                                                 self.hist_bincount)
-        print(">>> Setting histogram parameters")
-        self.switch(rs)
+        self.setHistogram()
         
     def close(self):
         rs = self.dll_lib.TDC_deInit()
@@ -162,10 +155,29 @@ class TDC:
         """ TBD - Get signal from LabJack control system, using signals
         I think I have to write a new class for the listener
         """
+        
+    def setHistogram(self,numHists=1):
+        self.dll_lib.TDC_clearAllHistograms()
+        
+        self.hist_bincount = config.hist_bincount
+        self.binwidth = config.binwidth
+        c_array32 = c_int32*self.hist_bincount
+        self.hist1 = c_array32()
+        self.hist2 = c_array32()
+        self.bins2ns = c_double(self.binwidth*self.timebase*1e9) # r u sure?
+        
+        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
+                                                 self.hist_bincount)
+        print(">>> Setting histogram parameters")
+        self.switch(rs)
             
     def getHistogram(self):
         """ TBD
         """
+        self.dll_lib.TDC_freezeBuffers(1)
+        
+        
+        self.dll_lib.TDC_freezeBuffers(0)
     
     def run(self,signal,filename="timestamps",filesuffix=".bin",out=1):
         """ Idea for signal: index of experiment run = 0,1,2,3,...,n
