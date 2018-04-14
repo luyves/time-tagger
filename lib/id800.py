@@ -124,7 +124,7 @@ class TDC:
                                                 byref(self.channels),
                                                 byref(self.valid))
         
-        print(">>> Getting last {} timestamps".format(str(self.timestamp_count)))
+        print(">>> Getting {} timestamps".format(str(self.timestamp_count)))
         self.switch(rs)
         if not rs:
             print("Timestamps: buffered {}".format(str(self.valid.value)))
@@ -153,7 +153,7 @@ class TDC:
         
     def experimenWindowSignal(self):
         """ TBD - Get signal from LabJack control system, using signals
-        I think I have to write a new class for the listener
+        I think I have to write a new class for the listener.
         """
         
     def setHistogram(self,numHists=1):
@@ -162,8 +162,8 @@ class TDC:
         self.hist_bincount = config.hist_bincount
         self.binwidth = config.binwidth
         c_array32 = c_int32*self.hist_bincount
-        self.hist1 = c_array32()
-        self.hist2 = c_array32()
+        for i in range(numHists):
+            self.hist = c_array32()
         self.bins2ns = c_double(self.binwidth*self.timebase*1e9) # r u sure?
         
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
@@ -171,11 +171,14 @@ class TDC:
         print(">>> Setting histogram parameters")
         self.switch(rs)
             
-    def getHistogram(self):
-        """ TBD
+    def getHistogram(self,hist,channel1=-1,channel2=-1):
+        """ Still have to see how tdcbase handles histogram plots to see if
+        this is even useful. I can probably set up a histogram of my own anyway
         """
+        hist = self.hist
         self.dll_lib.TDC_freezeBuffers(1)
-        
+        self.dll_lib.TDC_getHistogram(channel1,channel2,1,hist,
+                                      None,None,None,None,None,None)
         
         self.dll_lib.TDC_freezeBuffers(0)
     
