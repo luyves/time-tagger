@@ -171,11 +171,12 @@ class TDC:
         print(">>> Setting histogram parameters")
         self.switch(rs)
             
-    def getHistogram(self,hist,channel1=-1,channel2=-1):
-        """ Still have to see how tdcbase handles histogram plots to see if
-        this is even useful. I can probably set up a histogram of my own anyway
+    def getHistogram(self,hist=False,channel1=-1,channel2=-1):
+        """ What is the output like? saved in hist var but what about the
+        binning size? Bunch of other outputs but are not very needed.
         """
-        hist = self.hist
+        if not hist:
+            hist = self.hist
         self.dll_lib.TDC_freezeBuffers(1)
         self.dll_lib.TDC_getHistogram(channel1,channel2,1,hist,
                                       None,None,None,None,None,None)
