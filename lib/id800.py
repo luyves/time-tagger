@@ -22,14 +22,14 @@ class TDC:
         
 
         # Timebase
-        self.timebase = c_double()
-        self.timebase.value = self.dll_lib.TDC_getTimebase()
+        self.timebase = self.dll_lib.TDC_getTimebase()
+#        self.timebase.value = self.dll_lib.TDC_getTimebase(), c_double()
         self.timestamp_count = config.timestamp_count
         
         # Variable declarations
         self.channelMask = c_int8()
-        self.coincWin = c_int()
-        self.expTime = c_int()
+        self.coincWin = c_int(config.coincidence_window)
+        self.expTime = c_int(config.exposure_time)
         
         c_array8 = c_int8*self.timestamp_count
         c_array64 = c_int64*self.timestamp_count
@@ -42,6 +42,10 @@ class TDC:
         rs = self.dll_lib.TDC_init(-1) # Accept every device
         print(">>> Init module")
         self.switch(rs)
+        if rs != 0:
+            self.connection = False
+        else:
+            self.connection = True
         
         # Select channels to use (id800 userguide)
         # 0 = none         8 = 4
@@ -55,10 +59,10 @@ class TDC:
         
         self.channels_enabled = config.channels_enabled # All
         rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
-        print(">>> Enabling channels (byte-wise) "+str(self.channels_enabled))
-        self.switch(rs)
+#        print(">>> Enabling channels (byte-wise) "+str(self.channels_enabled))
+#        self.switch(rs)
         
-        print(">>> Setting coincidence window and exposure time")
+        # Coincidence window and exposure time
         rs = self.dll_lib.TDC_setCoincidenceWindow(self.coincWin)
         self.switch(rs)
         rs = self.dll_lib.TDC_setExposureTime(self.expTime)
@@ -67,7 +71,7 @@ class TDC:
         # Set the buffer size
         self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
         
-        self.setHistogram()
+        self.setHistogramParams()
         
     def close(self):
         rs = self.dll_lib.TDC_deInit()
@@ -102,8 +106,18 @@ class TDC:
     
     def getTimebase(self):
         print(self.timebase.value)
+        
+    def switchTermination(self,on=True):
+        rs = self.dll_lib.TDC_switchTermination(on)
+        return self.switch(rs)
     
-    def selfTest(self,test_channel,sg_period,sg_burst,burst_dist):
+    def getChannel(self,chan=0):
+        dictionary = {0:None,1:(1,),2:(2,),3:(1,2),4:(3,),5:(1,3),6:(2,3),7:(1,2,3),
+                      8:(4,),9:(1,4),10:(2,4),11:(1,2,4),12:(3,4),13:(1,3,4),
+                      14:(2,3,4),15:(1,2,3,4)}
+        return dictionary[chan]
+    
+    def configureSelfTest(self,test_channel,sg_period,sg_burst,burst_dist):
         rs = self.dll_lib.TDC_configureSelftest(test_channel,
                                                 sg_period,
                                                 sg_burst,
@@ -145,6 +159,54 @@ class TDC:
         for item in self.channels:
             channelfile.write("%s\n" % item)
         channelfile.close()
+        
+    def setHistogramParams(self,numHists=1):
+        self.dll_lib.TDC_clearAllHistograms()
+        
+        self.hist_bincount = config.hist_bincount
+        self.binwidth = config.binwidth
+        c_array32 = c_int32*self.hist_bincount
+        for i in range(numHists):
+            self.hist = c_array32()
+        self.bins2ns = c_double(self.binwidth.value*(81*1e-6)) # r u sure?
+        
+        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
+                                                 self.hist_bincount)
+#        print(">>> Setting histogram parameters")
+        self.switch(rs)
+            
+    def getHistogram(self,hist=False,channel1=-1,channel2=-1):
+        """ WIP if toobig or toosmall then you should change the expwindow
+        """
+        if not hist:
+            hist = self.hist
+        self.toobig = c_int32()
+        self.toosmall = c_int32()
+        self.datacount = c_int32()
+        self.dll_lib.TDC_freezeBuffers(1)
+        self.dll_lib.TDC_getHistogram(channel1,channel2,1,hist,
+                                      self.datacount,self.toosmall,self.toobig,
+                                      None,None,None)
+        
+        self.dll_lib.TDC_freezeBuffers(0)
+        
+    def getCoincCounters(self):
+        self.data = (c_int32*19)()
+        rs = self.dll_lib.TDC_getCoincCounters(self.data)
+        if not rs:
+            print("Coincidences calculated for {}ms".format(str(self.expTime.value)))
+        else:
+            self.switch(rs)
+        
+    def getDataLost(self):
+        """ LED signalling
+        """
+        self.data_loss = c_int8()
+        rs = self.dll_lib.TDC_getDataLost(self.data_loss)
+        if not rs:
+            return self.data_loss.value
+        else:
+            self.switch(rs)
     
     def experimentWindowSleep(self,sleep_time=1000):
         """ In milliseconds. Useless I think.
@@ -155,33 +217,6 @@ class TDC:
         """ TBD - Get signal from LabJack control system, using signals
         I think I have to write a new class for the listener.
         """
-        
-    def setHistogram(self,numHists=1):
-        self.dll_lib.TDC_clearAllHistograms()
-        
-        self.hist_bincount = config.hist_bincount
-        self.binwidth = config.binwidth
-        c_array32 = c_int32*self.hist_bincount
-        for i in range(numHists):
-            self.hist = c_array32()
-        self.bins2ns = c_double(self.binwidth*self.timebase*1e9) # r u sure?
-        
-        rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
-                                                 self.hist_bincount)
-        print(">>> Setting histogram parameters")
-        self.switch(rs)
-            
-    def getHistogram(self,hist=False,channel1=-1,channel2=-1):
-        """ What is the output like? saved in hist var but what about the
-        binning size? Bunch of other outputs but are not very needed.
-        """
-        if not hist:
-            hist = self.hist
-        self.dll_lib.TDC_freezeBuffers(1)
-        self.dll_lib.TDC_getHistogram(channel1,channel2,1,hist,
-                                      None,None,None,None,None,None)
-        
-        self.dll_lib.TDC_freezeBuffers(0)
     
     def run(self,signal,filename="timestamps",filesuffix=".bin",out=1):
         """ Idea for signal: index of experiment run = 0,1,2,3,...,n
