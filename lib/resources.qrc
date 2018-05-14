@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="/">
+    <file>icons/green-led-on.png</file>
+    <file>icons/led-red-on.png</file>
+  </qresource>
+</RCC>

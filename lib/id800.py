@@ -168,7 +168,7 @@ class TDC:
         c_array32 = c_int32*self.hist_bincount
         for i in range(numHists):
             self.hist = c_array32()
-        self.bins2ns = c_double(self.binwidth.value*(81*1e-6)) # r u sure?
+        self.bins2ns = c_double(self.binwidth*(81*1e-6)) # r u sure?
         
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
                                                  self.hist_bincount)
