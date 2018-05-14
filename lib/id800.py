@@ -22,8 +22,11 @@ class TDC:
         
 
         # Timebase
-        self.timebase = self.dll_lib.TDC_getTimebase()
-#        self.timebase.value = self.dll_lib.TDC_getTimebase(), c_double()
+
+        self.getTimebase = self.dll_lib.TDC_getTimebase
+        self.getTimebase.restype = c_double
+        self.timebase = self.getTimebase()
+        
         self.timestamp_count = config.timestamp_count
         
         # Variable declarations
@@ -72,6 +75,10 @@ class TDC:
         self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
         
         self.setHistogramParams()
+    
+    def getTimebase(self):
+        self.dll_lib.TDC_getTimebase.restype = c_double
+        return self.dll_lib.TDC_getTimebase()
         
     def close(self):
         rs = self.dll_lib.TDC_deInit()
@@ -103,9 +110,6 @@ class TDC:
         else:
             print("????")
         return
-    
-    def getTimebase(self):
-        print(self.timebase.value)
         
     def switchTermination(self,on=True):
         rs = self.dll_lib.TDC_switchTermination(on)
