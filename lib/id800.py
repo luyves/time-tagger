@@ -22,11 +22,9 @@ class TDC:
         
 
         # Timebase
-
         self.getTimebase = self.dll_lib.TDC_getTimebase
         self.getTimebase.restype = c_double
         self.timebase = self.getTimebase()
-        
         self.timestamp_count = config.timestamp_count
         
         # Variable declarations
