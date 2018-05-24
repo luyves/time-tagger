@@ -22,8 +22,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
         # Channelmask
         self.ch = 5
-        self.num_plots = 3
-#        self.num_plots = np.shape(self.TDC.getChannel(self.ch))[0] + 1 # +1 for total
+        self.num_plots = np.shape(self.TDC.getChannel(self.ch))[0] + 1 # +1 for total
         self.colors = [(255,0,0),(0,255,0),(0,0,255),(0,128,0),(19,234,201),
                        (195,46,212),(250,194,5)]
         
@@ -41,13 +40,30 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.runButton.clicked.connect(self.setTimer)
         
         # Plot updater
-        self.bin = 20 #ms
+        self.bin = 200 #ms
         self.plotmeta()
         self.timer = pg.QtCore.QTimer()
         self.timer.timeout.connect(self.updatemeta)
         self.timer.start(self.bin)
         self.playbackBtn.clicked.connect(self.playback)
-
+        self.timebinning.activated.connect(self.changeBinning)
+    
+    def changeBinning(self,index):
+        """ 0: 30ms, 1:50ms, 2:100ms, 3:200ms
+        """
+        if index==0:
+            self.bin = 30
+        elif index==1:
+            self.bin = 50
+        elif index==2:
+            self.bin = 100
+        elif index==3:
+            self.bin = 200
+        else:
+            pass
+        self.timer.setInterval(self.bin)
+            
+        
     def playback(self):
         """ Bool plotupdater
         """
@@ -104,7 +120,6 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         """        
         item = QtWidgets.QListWidgetItem("Item "+str(np.random.randint(0,10)))
         self.paramsList.addItem(item)
-        print(self.)
         
     def runSelfTest(self):
         self.TDC.selfTest(self.ch,self.sp,self.br,self.ds)
@@ -231,10 +246,16 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
         for i in range(self.num_plots):
             exec('self.p{} = plt.addPlot(row={},col=0)'.format(i,i+1))
+            exec('self.p{}.addLegend()'.format(i))
             exec('self.p{}.setXRange(-10,0)'.format(i))
+            exec('self.p{}.setYRange(1,0)'.format(i))
             exec('self.plots{} = []'.format(i))
             exec('self.data{} = np.empty((self.chunkSize+1,2))'.format(i))
         plots = ['self.p{}'.format(i) for i in range(self.num_plots)]
+        all_channels = self.TDC.getChannel(self.ch)
+        
+        self.counts_plot_names = ['Channel {}'.format(i) for i in all_channels]
+        self.counts_plot_names.append("Global")
         exec('{}.setLabel(\'bottom\',\'Time\', \'s\')'.format(plots[-1]))
         
     def updatemeta(self):
@@ -247,7 +268,10 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         k = self.ptr % self.chunkSize
         if k == 0:
             for i in range(self.num_plots):
-                exec('self.curve{} = self.p{}.plot()'.format(i,i))
+                if self.ptr == 0:
+                    exec('self.curve{} = self.p{}.plot(name=self.counts_plot_names[i])'.format(i,i))
+                else:
+                    exec('self.curve{} = self.p{}.plot()'.format(i,i))
                 exec('self.plots{}.append(self.curve{})'.format(i,i))
                 exec('self.last{} = self.data{}[-1]'.format(i,i))
                 exec('self.data{} = np.empty((self.chunkSize+1,2))'.format(i))
