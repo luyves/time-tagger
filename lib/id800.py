@@ -9,6 +9,7 @@ from ctypes import WinDLL,byref,c_int,c_int8,c_int32,c_int64,c_double
 from time import sleep
 from os import path
 import config
+import warnings
 
 
 class TDC:
@@ -28,6 +29,8 @@ class TDC:
         self.timestamp_count = config.timestamp_count
         
         # Variable declarations
+        self.getVersion = self.dll_lib.TDC_getVersion
+        self.getVersion.restype = c_double
         self.channelMask = c_int8()
         self.coincWin = c_int(config.coincidence_window)
         self.expTime = c_int(config.exposure_time)
@@ -41,7 +44,7 @@ class TDC:
         
         # Activate
         rs = self.dll_lib.TDC_init(-1) # Accept every device
-        print(">>> Init module")
+        print(">>> Init module : ", end="")
         self.switch(rs)
         if rs != 0:
             self.connection = False
@@ -59,15 +62,15 @@ class TDC:
         # 7 = 1,2,3       15 = 1,2,3,4
         
         self.channels_enabled = config.channels_enabled # All
+        print(">>> Enabling channelmask {} : ".format(c_int8(self.channels_enabled).value),end="")
         rs = self.dll_lib.TDC_enableChannels(self.channels_enabled)
-#        print(">>> Enabling channels (byte-wise) "+str(self.channels_enabled))
-#        self.switch(rs)
+        self.switch(rs)
         
         # Coincidence window and exposure time
+        print(">>> Setting Coincidence Counter parameters : ", end="")
         rs = self.dll_lib.TDC_setCoincidenceWindow(self.coincWin)
         self.switch(rs)
-        rs = self.dll_lib.TDC_setExposureTime(self.expTime)
-        self.switch(rs)
+        self.dll_lib.TDC_setExposureTime(self.expTime)
         
         # Set the buffer size
         self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
@@ -85,7 +88,7 @@ class TDC:
     def switch(self,rs):
         """ For debugging, refer to tdcbase.h
         """
-        if rs == 0: #TDC_Ok
+        if rs == 0 and rs is not False: #TDC_Ok
             print("Success")
         elif rs == -1: #TDC_Error
             print("Unspecified error")
@@ -127,23 +130,27 @@ class TDC:
         return self.switch(rs)
     
     def getDeviceParams(self):
-        return self.dll_lib.TDC_getDeviceParams(byref(self.channelMask),
+        self.dll_lib.TDC_getDeviceParams(byref(self.channelMask),
                                                 byref(self.coincWin),
                                                 byref(self.expTime))
+        print("Channels: {}".format(self.channelMask.value))
+        print("Coincidence Window: {} bins".format(self.coincWin.value))
+        print("Exposure Time: {} ms".format(self.expTime.value))
     
-    def getLastTimestamps(self,freeze=True,output=False,*args):
-        """ WIP
+    def getLastTimestamps(self,reset=False,output=False,*args):
+        """ Done
         """
+        freeze = True
         if freeze:
             self.dll_lib.TDC_freezeBuffers(1)
-        rs = self.dll_lib.TDC_getLastTimestamps(1,byref(self.timestamps),
+        rs = self.dll_lib.TDC_getLastTimestamps(reset,byref(self.timestamps),
                                                 byref(self.channels),
                                                 byref(self.valid))
         
-        print(">>> Getting {} timestamps".format(str(self.timestamp_count)))
-        self.switch(rs)
-        if not rs:
-            print("Timestamps: buffered {}".format(str(self.valid.value)))
+#        print(">>> Getting {} timestamps : ".format(str(self.timestamp_count)), end="")
+#        self.switch(rs)
+#        if not rs:
+#            print("Timestamps: buffered {}".format(str(self.valid.value)))
         if output:
             self.saveTimestamps(*args)
             print("Saving to file...")
@@ -171,10 +178,9 @@ class TDC:
         for i in range(numHists):
             self.hist = c_array32()
         self.bins2ns = c_double(self.binwidth*(81*1e-6)) # r u sure?
-        
+        print(">>> Setting Histogram parameters : ", end="")
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
                                                  self.hist_bincount)
-#        print(">>> Setting histogram parameters")
         self.switch(rs)
             
     def getHistogram(self,hist=False,channel1=-1,channel2=-1):
@@ -198,17 +204,18 @@ class TDC:
         if not rs:
             print("Coincidences calculated for {}ms".format(str(self.expTime.value)))
         else:
+            print(">>> Getting Coincidence Counters : ")
             self.switch(rs)
         
     def getDataLost(self):
         """ LED signalling
         """
         self.data_loss = c_int8()
+        print(">>> Checking for data loss : ", end="")
         rs = self.dll_lib.TDC_getDataLost(self.data_loss)
+        self.switch(rs)
         if not rs:
-            return self.data_loss.value
-        else:
-            self.switch(rs)
+            warnings.warn("Possible data loss! Make sure PC is able to receive data.")
     
     def experimentWindowSleep(self,sleep_time=1000):
         """ In milliseconds. Useless I think.
