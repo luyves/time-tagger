@@ -11,7 +11,7 @@ import numpy as np
 import pyqtgraph as pg
 import sys
 from id800 import TDC
-from photon_gui import Ui_photons
+from photon_gui_s import Ui_photons
 
 class AppWindow(QtWidgets.QMainWindow,Ui_photons):
     def __init__(self):
@@ -19,7 +19,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.setupUi(self)
         self.statusbar.showMessage("No connection established")
         self.TDC = TDC()
-        self.connectionTest()
+#        self.connectionTest()
         
         # Channelmask
         self.ch = 1

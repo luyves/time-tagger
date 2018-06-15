@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="/">
+    <file>icons/player_play.png</file>
+    <file>icons/player_stop.png</file>
     <file>icons/green-led-on.png</file>
     <file>icons/led-red-on.png</file>
   </qresource>
