@@ -35,13 +35,19 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.selftest_check.stateChanged.connect(self.paramsUpdate)
         self.runButton.clicked.connect(self.setTimer)
         
+        # Histogram settings
+        self.lineEdit_bincount.setText(str(self.TDC.hist_bincount))
+        self.lineEdit_binwidth.setText(str(self.TDC.binwidth))
+        self.lineEdit_exptime.setText(str(self.TDC.expTime.value))
+        self.refreshBtn.clicked.connect(self.refreshHistVals)
+        
         # Plot updater
         self.bin = 50 #ms
         self.initCountsPlot()
         
         self.timer = pg.QtCore.QTimer()
         self.timer.timeout.connect(self.updateCountsPlot)
-        self.timer.start(self.bin)
+        self.timer.start(self.bin*0.85)
         self.playbackBtn.clicked.connect(self.playback)
         self.timebinning.activated.connect(self.changeBinning)
     
@@ -87,7 +93,14 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.TDC.switchTermination(False)
         else:
             pass
-        
+    
+    def refreshHistVals(self):
+        bincount = int(self.lineEdit_bincount.text())
+        binwidth = int(self.lineEdit_binwidth.text())
+        exptime = int(self.lineEdit_exptime.text())
+        self.TDC.dll_lib.TDC_setExposureTime(exptime)
+        self.TDC.setHistogramParams(bincount,binwidth,False)
+    
     def paramsUpdate(self):
         """ Placeholder func
         """
@@ -113,6 +126,25 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
     def runSelfTest(self):
         self.TDC.selfTest(self.ch,self.sp,self.br,self.ds)
+    
+    def initHistPlot(self):
+        if self.histBox.isChecked:
+            channelA = self.chanAbox.currentIndex()
+            channelB = self.chanBbox.currentIndex()            
+            self.TDC.getHistogram(channelA,channelB)
+        else:
+            self.TDC.getHistogram()
+
+        self.lineEdit_toobig.setText(self.TDC.toobig)
+        self.lineEdit_toosmall.setText(self.TDC.toosmall)
+        
+        self.hfigure = self.hist_plot.addPlot()
+#        self.hfigure.addLegend()
+        self.hfigure.setLabel('bottom', 'Time diffs','µs')            
+        self.hcurve = self.hfigure.plot()
+        
+        self.hcurve.setData(self.TDC.hist)
+        
     
     def initCountsPlot(self):
         self.startTime = pg.ptime.time()

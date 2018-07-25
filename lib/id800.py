@@ -75,7 +75,12 @@ class TDC:
         # Set the buffer size
         self.dll_lib.TDC_setTimestampBufferSize(self.timestamp_count)
         
+        # Histogram
         self.setHistogramParams()
+        
+        self.toobig = c_int32()
+        self.toosmall = c_int32()
+        self.datacount = c_int32()
     
     def getTimebase(self):
         self.dll_lib.TDC_getTimebase.restype = c_double
@@ -169,32 +174,35 @@ class TDC:
             channelfile.write("%s\n" % item)
         channelfile.close()
         
-    def setHistogramParams(self,numHists=1):
+    def setHistogramParams(self,bincount=0,binwidth=0,init=1):
         self.dll_lib.TDC_clearAllHistograms()
         
-        self.hist_bincount = config.hist_bincount
-        self.binwidth = config.binwidth
+        if init == 1:
+            self.hist_bincount = config.hist_bincount
+            self.binwidth = config.binwidth
+        else:
+            self.hist_bincount = bincount
+            self.binwidth = binwidth
         c_array32 = c_int32*self.hist_bincount
-        for i in range(numHists):
-            self.hist = c_array32()
+        self.hist = c_array32()
         self.bins2ns = c_double(self.binwidth*(81*1e-6)) # r u sure?
         print(">>> Setting Histogram parameters : ", end="")
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
                                                  self.hist_bincount)
         self.switch(rs)
             
-    def getHistogram(self,hist=False,channel1=-1,channel2=-1):
+    def getHistogram(self,channel1=-1,channel2=-1):
         """ WIP if toobig or toosmall then you should change the expwindow
-        """
-        if not hist:
-            hist = self.hist
-        self.toobig = c_int32()
-        self.toosmall = c_int32()
-        self.datacount = c_int32()
+        """        
         self.dll_lib.TDC_freezeBuffers(1)
-        self.dll_lib.TDC_getHistogram(channel1,channel2,1,hist,
+        
+        # Set the histogram
+        c_array32 = c_int32*self.hist_bincount
+        self.hist = c_array32()
+        
+        self.dll_lib.TDC_getHistogram(channel1,channel2,1,self.hist,
                                       self.datacount,self.toosmall,self.toobig,
-                                      None,None,None)
+                                      None,None,self.expTime)
         
         self.dll_lib.TDC_freezeBuffers(0)
         
