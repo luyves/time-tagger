@@ -493,7 +493,7 @@ class Ui_photons(object):
         self.lineEdit_bincount = QtWidgets.QLineEdit(self.hist_tab)
         self.lineEdit_bincount.setObjectName("lineEdit_bincount")
         self.gridLayout.addWidget(self.lineEdit_bincount, 1, 3, 1, 1)
-        self.hist_plot = PlotWidget(self.hist_tab)
+        self.hist_plot = GraphicsLayoutWidget(self.hist_tab)
         self.hist_plot.setObjectName("hist_plot")
         self.gridLayout.addWidget(self.hist_plot, 2, 1, 1, 9)
         self.label_9 = QtWidgets.QLabel(self.hist_tab)
@@ -626,5 +626,5 @@ class Ui_photons(object):
         self.actionCounts.setText(_translate("photons", "Counts"))
         self.actionHistogram.setText(_translate("photons", "Histogram"))
 
-from pyqtgraph import GraphicsLayoutWidget, PlotWidget
+from pyqtgraph import GraphicsLayoutWidget
 import resources_rc

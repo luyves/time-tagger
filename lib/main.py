@@ -7,6 +7,7 @@ Created on Wed May  2 12:17:57 2018
 
 from PyQt5 import QtCore, QtWidgets, QtGui
 
+from ctypes import c_double
 import numpy as np
 import pyqtgraph as pg
 import sys
@@ -19,7 +20,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.setupUi(self)
         self.statusbar.showMessage("No connection established")
         self.TDC = TDC()
-#        self.connectionTest()
+        self.connectionTest()
         
         # Channelmask
         self.ch = 1
@@ -38,18 +39,34 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         # Histogram settings
         self.lineEdit_bincount.setText(str(self.TDC.hist_bincount))
         self.lineEdit_binwidth.setText(str(self.TDC.binwidth))
-        self.lineEdit_exptime.setText(str(self.TDC.expTime.value))
+#        self.lineEdit_exptime.setText(str(self.TDC.hexpTime.value))
         self.refreshBtn.clicked.connect(self.refreshHistVals)
         
         # Plot updater
         self.bin = 50 #ms
         self.initCountsPlot()
+        self.initHistPlot()
         
         self.timer = pg.QtCore.QTimer()
+        self.htimer = pg.QtCore.QTimer()
         self.timer.timeout.connect(self.updateCountsPlot)
-        self.timer.start(self.bin*0.85)
+        self.htimer.timeout.connect(self.updateHistPlot)
+        self.timer.start(self.bin*0.50)
+        self.htimer.start(1000)
         self.playbackBtn.clicked.connect(self.playback)
         self.timebinning.activated.connect(self.changeBinning)
+        
+        # Help
+        self.actionCounts.triggered.connect(self.countsHelp)
+        self.actionHistogram.triggered.connect(self.histogramHelp)
+        
+    def countsHelp(self):
+        cHelp = QtWidgets.QMessageBox.question()
+        cHelp.setText("Counts tab help")
+        cHelp.setInformativeText("nice")
+    
+    def histogramHelp(self):
+        print("nice")
     
     def changeBinning(self,index):
         """ Change binning size. Options are:
@@ -99,7 +116,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         binwidth = int(self.lineEdit_binwidth.text())
         exptime = int(self.lineEdit_exptime.text())
         self.TDC.dll_lib.TDC_setExposureTime(exptime)
-        self.TDC.setHistogramParams(bincount,binwidth,False)
+        self.TDC.setHistogramParams(bincount,binwidth)
     
     def paramsUpdate(self):
         """ Placeholder func
@@ -126,6 +143,10 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
     def runSelfTest(self):
         self.TDC.selfTest(self.ch,self.sp,self.br,self.ds)
+        
+    def checkLastValue(self, d, default=None):
+        rev = (len(d) - idx for idx, item in enumerate(reversed(d), 1) if item)
+        return next(rev, default)
     
     def initHistPlot(self):
         if self.histBox.isChecked:
@@ -135,17 +156,39 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         else:
             self.TDC.getHistogram()
 
-        self.lineEdit_toobig.setText(self.TDC.toobig)
-        self.lineEdit_toosmall.setText(self.TDC.toosmall)
+        self.lineEdit_toobig.setText(str(self.TDC.toobig.value))
+        self.lineEdit_toosmall.setText(str(self.TDC.toosmall.value))
         
-        self.hfigure = self.hist_plot.addPlot()
-#        self.hfigure.addLegend()
+        self.hfigure = self.hist_plot.addPlot(row=0,col=0)
         self.hfigure.setLabel('bottom', 'Time diffs','µs')            
         self.hcurve = self.hfigure.plot()
+        self.hdata = np.array(self.TDC.hist)
+        self.hpeak = max(set(self.hdata))
+        max_xval = int(min([(self.checkLastValue(self.hdata,len(self.hdata))+len(self.hdata)/15),
+                        len(self.hdata)]))
+        self.hbins = np.linspace(1,max_xval,max_xval)*self.TDC.bins2ns.value
+        self.hcurve.setData(x=self.hbins, y=self.hdata,
+                            fillLevel=0, brush=(0,0,255,150))
+        self.hfigure.setRange(yRange=[0,self.hpeak])
         
-        self.hcurve.setData(self.TDC.hist)
+    def updateHistPlot(self):
+        if self.histBox.isChecked:
+            channelA = self.chanAbox.currentIndex()
+            channelB = self.chanBbox.currentIndex()            
+            self.TDC.getHistogram(channelA,channelB)
+        else:
+            self.TDC.getHistogram()
+        self.lineEdit_toobig.setText(str(self.TDC.toobig.value))
+        self.lineEdit_toosmall.setText(str(self.TDC.toosmall.value))
+        self.hdata = np.array(self.TDC.hist)
+        self.hcurrentpeak = max(set(self.hdata))
+        if self.hcurrentpeak > self.hpeak:
+            self.hfigure.setRange(yRange=[0,self.hcurrentpeak])
+        self.hbins = np.linspace(1,self.TDC.hist_bincount,
+                                 self.TDC.hist_bincount)*self.TDC.bins2ns.value
+        self.hcurve.setData(x=self.hbins, y=self.hdata,
+                            fillLevel=0, brush=(0,0,255,150))
         
-    
     def initCountsPlot(self):
         self.startTime = pg.ptime.time()
         self.chunkSize = 100
@@ -160,6 +203,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         for i in range(self.num_plots):
             exec('self.p{} = self.counts_plot.addPlot(row={},col=0)'.format(i,i+1))
             exec('self.p{}.addLegend()'.format(i))
+            exec('self.p{}.setDownsampling(mode=\'peak\')'.format(i))
             exec('self.p{}.setXRange(-10,0)'.format(i))
         self.figures = [eval(self.figures[i]) for i in range(self.num_plots)]
         
@@ -257,6 +301,10 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.curve[i].setData(x=self.data[i][:k+2,0],y=self.data[i][:k+2,1],
                       pen=self.colors[i%len(self.colors)],pensize=3)
         self.ptr += 1
+    
+    def update(self):
+        self.updateCountsPlot()
+        self.updateHistPlot()
     
     def connectionTest(self):
         """ TDC connection test
