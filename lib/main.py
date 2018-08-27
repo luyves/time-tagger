@@ -11,7 +11,10 @@ from ctypes import c_double
 import numpy as np
 import pyqtgraph as pg
 import sys
+import config
+from time import strftime
 from id800 import TDC
+from pathlib import Path
 from photon_gui_s import Ui_photons
 
 class AppWindow(QtWidgets.QMainWindow,Ui_photons):
@@ -33,32 +36,76 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.input50btn.toggled.connect(self.impedance)
         
          # Self testing (random params)
-        self.selftest_check.stateChanged.connect(self.paramsUpdate)
-        self.runButton.clicked.connect(self.setTimer)
+#        self.selftest_check.stateChanged.connect(self.paramsUpdate)
+#        self.runButton.clicked.connect(self.nextFile)
         
         # Histogram settings
-        self.lineEdit_bincount.setText(str(self.TDC.hist_bincount))
+        self.lineEdit_bincount.setText(str(self.TDC.bincount))
         self.lineEdit_binwidth.setText(str(self.TDC.binwidth))
-#        self.lineEdit_exptime.setText(str(self.TDC.hexpTime.value))
         self.refreshBtn.clicked.connect(self.refreshHistVals)
         
         # Plot updater
-        self.bin = 50 #ms
+        self.bin = 50 # ms
         self.initCountsPlot()
         self.initHistPlot()
         
+        # Timers
         self.timer = pg.QtCore.QTimer()
         self.htimer = pg.QtCore.QTimer()
         self.timer.timeout.connect(self.updateCountsPlot)
         self.htimer.timeout.connect(self.updateHistPlot)
-        self.timer.start(self.bin*0.50)
+        self.timer.start(self.bin*0.5)
         self.htimer.start(1000)
         self.playbackBtn.clicked.connect(self.playback)
         self.timebinning.activated.connect(self.changeBinning)
         
+        # Data saving
+        self.file_extension = config.file_extension
+        self.filename = strftime('%y%m%d')+'_'+config.filename
+        self.total_runs = config.total_runs
+        
+        self.ccounter = 0
+        self.ccounter_true = 0
+        self.fcounter_zfill = len(config.total_runs)
+        self.ccounter_label = f"{self.ccounter}".zfill(self.fcounter_zfill)
+        
+        self.progressbar.setMaximum(int(config.timestamp_count))
+        self.counter_finalval.display(int(config.total_runs))
+        
+        while True:
+            myfile = Path(self.filename+self.ccounter_label+self.file_extension)
+            if myfile.is_file():
+                self.ccounter_true += 1
+                self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
+            else:
+                break
+        
+        self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
+        
         # Help
         self.actionCounts.triggered.connect(self.countsHelp)
         self.actionHistogram.triggered.connect(self.histogramHelp)
+    
+    def saveFile(self):
+        with open(self.filenameLabel.text(),'w') as f:
+            for i in range(len(self.TDC.timestamps)):
+                f.write("%s,%s\n" % (self.TDC.timestamps[i], self.TDC.channels[i]))
+    
+    def nextFile(self):
+        """ WIP, tuneable parameter (changes the binning)
+        """
+        if self.ccounter < int(config.total_runs):
+            self.ccounter += 1
+            self.ccounter_true += 1
+            self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
+            self.counter_currentval.display(self.ccounter)
+            self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
+            self.TDC.getLastTimestamps(reset=True)
+            self.progressbar.setValue(0)
+            print(self.filenameLabel.text())
+        else:
+            self.timer.stop()
+            self.htimer.stop()  
         
     def countsHelp(self):
         cHelp = QtWidgets.QMessageBox.question()
@@ -92,12 +139,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.playbackBtn.setText("Plot")
         else:
             self.timer.start(self.bin)
-            self.playbackBtn.setText("Stop")
-            
-    def setTimer(self):
-        """ WIP, tuneable parameter (changes the binning)
-        """
-        self.timer.setInterval(5*np.random.randint(1,30))
+            self.playbackBtn.setText("Stop")        
         
     def impedance(self):
         """ TDC input impedance (50 or 1000)
@@ -160,13 +202,13 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.lineEdit_toosmall.setText(str(self.TDC.toosmall.value))
         
         self.hfigure = self.hist_plot.addPlot(row=0,col=0)
-        self.hfigure.setLabel('bottom', 'Time diffs','µs')            
+        self.hfigure.setLabel('bottom', 'Time diffs (ns)')            
         self.hcurve = self.hfigure.plot()
         self.hdata = np.array(self.TDC.hist)
         self.hpeak = max(set(self.hdata))
-        max_xval = int(min([(self.checkLastValue(self.hdata,len(self.hdata))+len(self.hdata)/15),
-                        len(self.hdata)]))
-        self.hbins = np.linspace(1,max_xval,max_xval)*self.TDC.bins2ns.value
+#        max_xval = int(min([(self.checkLastValue(self.hdata,len(self.hdata))+len(self.hdata)/15),
+#                        len(self.hdata)]))
+        self.hbins = np.linspace(1,self.TDC.bincount,self.TDC.bincount)*self.TDC.bins2ns.value
         self.hcurve.setData(x=self.hbins, y=self.hdata,
                             fillLevel=0, brush=(0,0,255,150))
         self.hfigure.setRange(yRange=[0,self.hpeak])
@@ -184,8 +226,8 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.hcurrentpeak = max(set(self.hdata))
         if self.hcurrentpeak > self.hpeak:
             self.hfigure.setRange(yRange=[0,self.hcurrentpeak])
-        self.hbins = np.linspace(1,self.TDC.hist_bincount,
-                                 self.TDC.hist_bincount)*self.TDC.bins2ns.value
+        self.hbins = np.linspace(1,self.TDC.bincount,
+                                 self.TDC.bincount)*self.TDC.bins2ns.value
         self.hcurve.setData(x=self.hbins, y=self.hdata,
                             fillLevel=0, brush=(0,0,255,150))
         
@@ -225,8 +267,17 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             timestamps = self.TDC.timebase*np.array(self.TDC.timestamps)
             channels = np.array(self.TDC.channels)
             valid = self.TDC.valid.value
-            self.statusbar.showMessage("Timestamps: buffered {}".format(str(valid)))
+            self.statusbar.showMessage("Timestamps: buffered {}".format(str(valid))+
+                                       "/"+str(self.TDC.timestamp_count))
+            if valid<self.TDC.timestamp_count:
+                self.progressbar.setValue(valid)
+            else:
+                # Save a new file
+                self.saveFile()
+                self.nextFile()
+                
         else:
+            # for debugging
             timestamps = np.loadtxt("timestamps.bin")
             channels = np.loadtxt("channels.bin")
             valid = len(timestamps)

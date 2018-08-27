@@ -164,18 +164,18 @@ class TDC:
         self.dll_lib.TDC_clearAllHistograms()
         
         if binwidth == 0 or bincount == 0:
-            self.hist_bincount = config.hist_bincount
+            self.bincount = config.bincount
             self.binwidth = config.binwidth
         else:
-            self.hist_bincount = bincount
+            self.bincount = bincount
             self.binwidth = binwidth
-        c_array32 = c_int32*self.hist_bincount
+        c_array32 = c_int32*self.bincount
         self.hist = c_array32()
         self.bins2ns = c_double(self.binwidth*(81*1e-6))
         
         print(">>> Setting Histogram parameters : ", end="")
         rs = self.dll_lib.TDC_setHistogramParams(self.binwidth,
-                                                 self.hist_bincount)
+                                                 self.bincount)
         self.switch(rs)
         
     def getHistogramParams(self):
