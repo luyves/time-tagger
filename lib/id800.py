@@ -81,41 +81,38 @@ class TDC:
         """ For debugging, refer to tdcbase.h
         """
         if rs == 0 and rs is not False: #TDC_Ok
-            print("Success")
+            msg = "Success"
         elif rs == -1: #TDC_Error
-            print("Unspecified error")
+            msg = "Unspecified error"
         elif rs == 1: #TDC_Timeout
-            print("Receive timed out")
+            msg = "Receive timed out"
         elif rs == 2: #TDC_NotConnected
-            print("No connection was established")
+            msg = "No connection was established"
         elif rs == 3: #TDC_DriverError
-            print("Error accessing the USB driver")
+            msg = "Error accessing the USB driver"
         elif rs == 7: #TDC_DeviceLocked
-            print("Can't connect device beause already in use")
+            msg = "Can't connect device beause already in use"
         elif rs == 8: #TDC_Unknown
-            print("Unknown error")
+            msg = "Unknown error"
         elif rs == 9: #TDC_NoDevice
-            print("Invalid device number used in call")
+            msg = "Invalid device number used in call"
         elif rs == 10: #TDC_OutOfRange
-            print("Parameter in func. call is out of range")
+            msg = "Parameter in func. call is out of range"
         elif rs == 11: #TDC_CantOpen
-            print("Failed to open specified file")
+            msg = "Failed to open specified file"
         else:
-            print("????")
-        return
+            msg = "????"
+        print(msg)
+        return msg
         
     def switchTermination(self,on=True):
         rs = self.dll_lib.TDC_switchTermination(on)
         return self.switch(rs)
-    
-#    def getTimebase(self):
-#        self.dll_lib.TDC_getTimebase.restype = c_double
-#        return self.dll_lib.TDC_getTimebase()
-    
+
     def getChannel(self,chan=0):
-        dictionary = {0:None,1:(1,),2:(2,),3:(1,2),4:(3,),5:(1,3),6:(2,3),7:(1,2,3),
-                      8:(4,),9:(1,4),10:(2,4),11:(1,2,4),12:(3,4),13:(1,3,4),
-                      14:(2,3,4),15:(1,2,3,4)}
+        dictionary = {0:None,1:(0,),2:(1,),3:(0,1),4:(2,),5:(0,2),6:(1,2),7:(0,1,2),
+                      8:(3,),9:(0,3),10:(1,3),11:(0,1,3),12:(2,3),13:(0,2,3),
+                      14:(1,2,3),15:(0,1,2,3)}
         return dictionary[chan]
     
     def getDeviceParams(self):
@@ -197,8 +194,8 @@ class TDC:
         self.dll_lib.TDC_freezeBuffers(0)
         
     def getCoincCounters(self):
-        self.data = (c_int32*19)()
-        rs = self.dll_lib.TDC_getCoincCounters(self.data)
+        self.coincidence_array = (c_int32*19)()
+        rs = self.dll_lib.TDC_getCoincCounters(self.coincidence_array)
         if not rs:
             print("Coincidences calculated for {}ms".format(str(self.expTime.value)))
         else:
@@ -214,39 +211,3 @@ class TDC:
         self.switch(rs)
         if rs:
             warnings.warn("Possible data loss! Make sure PC is able to receive data.")
-        
-    def experimenWindowSignal(self):
-        """ TBD - Get signal from LabJack control system, using signals
-        I think I have to write a new class for the listener.
-        """
-    
-    def run(self,signal,filename="timestamps",filesuffix=".bin",out=1):
-        """ Idea for signal: index of experiment run = 0,1,2,3,...,n
-        If first, only open new file.
-        If last, only close file.
-        Else, close last and open new file.
-        
-        WIP until I know how to implement signalling from LabJack, but it
-        should pretty much be something like this. Can't work much more until
-        I know how.
-        """
-        if signal == ("last"): # If last: close and end call
-            try:
-                self.dll_lib.TDC_writeTimestamps(None,c_int(out))
-            except:
-                print(">>> Couldn't initiate run")
-        else: # If not last: check if first or else
-            if signal == ("else"): # If else: close then open
-                try:
-                    self.dll_lib.TDC_writeTimestamps(None,c_int(out))
-                except:
-                    print(">>> Couldn't initiate run")
-            # If first: ignore closing and only open
-            try: 
-                # Start writing to file
-                text = str.encode(filename+filesuffix)
-                rs = self.dll_lib.TDC_writeTimestamps(text,c_int(out))
-                print(">>> Writing to file "+filename+filesuffix)
-                self.switch(rs)                    
-            except:
-                print(">>> Couln't initiate run")

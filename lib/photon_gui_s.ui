@@ -581,6 +581,9 @@
               <pointsize>13</pointsize>
              </font>
             </property>
+            <property name="toolTip">
+             <string>File will be saved with this name</string>
+            </property>
             <property name="text">
              <string>Save as</string>
             </property>
@@ -644,6 +647,9 @@
               <height>75</height>
              </size>
             </property>
+            <property name="toolTip">
+             <string>Current buffer to be filled</string>
+            </property>
             <property name="smallDecimalPoint">
              <bool>false</bool>
             </property>
@@ -677,6 +683,9 @@
               <horstretch>0</horstretch>
               <verstretch>0</verstretch>
              </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Total number of buffers to be filled</string>
             </property>
             <property name="intValue" stdset="0">
              <number>1000</number>
@@ -728,6 +737,9 @@
              <height>0</height>
             </size>
            </property>
+           <property name="toolTip">
+            <string>config.py parameters</string>
+           </property>
           </widget>
          </item>
          <item>
@@ -771,30 +783,6 @@
           </spacer>
          </item>
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_6">
-           <item>
-            <widget class="QLabel" name="label_11">
-             <property name="text">
-              <string># of runs</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLineEdit" name="lineEdit_totalRuns">
-             <property name="sizePolicy">
-              <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-               <horstretch>0</horstretch>
-               <verstretch>0</verstretch>
-              </sizepolicy>
-             </property>
-             <property name="text">
-              <string>10</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-         <item>
           <widget class="QPushButton" name="runButton">
            <property name="font">
             <font>
@@ -803,11 +791,14 @@
              <underline>true</underline>
             </font>
            </property>
+           <property name="toolTip">
+            <string>Save current file and clear buffer</string>
+           </property>
            <property name="autoFillBackground">
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>Begin</string>
+            <string>Save/Next file</string>
            </property>
            <property name="default">
             <bool>false</bool>
@@ -859,6 +850,9 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
+            <property name="toolTip">
+             <string>Integration time</string>
+            </property>
             <property name="text">
              <string>Time bin</string>
             </property>
@@ -887,6 +881,11 @@
             <item>
              <property name="text">
               <string>200 ms</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>1 s</string>
              </property>
             </item>
            </widget>
@@ -992,13 +991,20 @@
           </item>
           <item row="1" column="8">
            <widget class="QLabel" name="label_8">
+            <property name="toolTip">
+             <string>N of time diffs smaller than the smallest</string>
+            </property>
             <property name="text">
              <string>Too small</string>
             </property>
            </widget>
           </item>
           <item row="0" column="3">
-           <widget class="QLineEdit" name="lineEdit_binwidth"/>
+           <widget class="QLineEdit" name="lineEdit_binwidth">
+            <property name="toolTip">
+             <string>In timebase units</string>
+            </property>
+           </widget>
           </item>
           <item row="1" column="2">
            <widget class="QLabel" name="label_6">
@@ -1009,6 +1015,9 @@
           </item>
           <item row="0" column="8">
            <widget class="QLabel" name="label_7">
+            <property name="toolTip">
+             <string>N of time diffs bigger than largest</string>
+            </property>
             <property name="text">
              <string>Too big</string>
             </property>
@@ -1177,13 +1186,20 @@
            </widget>
           </item>
           <item row="1" column="3">
-           <widget class="QLineEdit" name="lineEdit_bincount"/>
+           <widget class="QLineEdit" name="lineEdit_bincount">
+            <property name="toolTip">
+             <string>In timebase units</string>
+            </property>
+           </widget>
           </item>
           <item row="2" column="1" colspan="9">
            <widget class="GraphicsLayoutWidget" name="hist_plot"/>
           </item>
           <item row="0" column="4">
            <widget class="QLabel" name="label_9">
+            <property name="toolTip">
+             <string>Total exposure time for histogram</string>
+            </property>
             <property name="text">
              <string>Exp time</string>
             </property>
@@ -1285,6 +1301,9 @@
           </item>
           <item row="1" column="4" colspan="3">
            <widget class="QPushButton" name="refreshBtn">
+            <property name="toolTip">
+             <string>Refresh histogram</string>
+            </property>
             <property name="text">
              <string>Refresh!</string>
             </property>
@@ -1307,14 +1326,6 @@
      <height>26</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuHelp">
-    <property name="title">
-     <string>Help</string>
-    </property>
-    <addaction name="actionCounts"/>
-    <addaction name="actionHistogram"/>
-   </widget>
-   <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
   <action name="actionCounts">

@@ -12,6 +12,7 @@ import numpy as np
 import pyqtgraph as pg
 import sys
 import config
+from os import getcwd
 from time import strftime
 from id800 import TDC
 from pathlib import Path
@@ -25,8 +26,11 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.TDC = TDC()
         self.connectionTest()
         
+        # Debugging
+#        self.runSelfTest()
+                
         # Channelmask
-        self.ch = 1
+        self.ch = 3
         self.num_plots = np.shape(self.TDC.getChannel(self.ch))[0] + 1 # +1 for total
         self.colors = [(255,0,0),(0,255,0),(0,0,255),(0,128,0),(19,234,201),
                        (195,46,212),(250,194,5)]
@@ -34,10 +38,6 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         # Input impedance - 50 Ohms default
         self.TDC.switchTermination(True)
         self.input50btn.toggled.connect(self.impedance)
-        
-         # Self testing (random params)
-#        self.selftest_check.stateChanged.connect(self.paramsUpdate)
-#        self.runButton.clicked.connect(self.nextFile)
         
         # Histogram settings
         self.lineEdit_bincount.setText(str(self.TDC.bincount))
@@ -63,15 +63,16 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.file_extension = config.file_extension
         self.filename = strftime('%y%m%d')+'_'+config.filename
         self.total_runs = config.total_runs
-        
+        self.runButton.clicked.connect(self.saveFile)
+        self.runButton.clicked.connect(self.nextFile)
+            # Updating save parameters
         self.ccounter = 0
         self.ccounter_true = 0
         self.fcounter_zfill = len(config.total_runs)
         self.ccounter_label = f"{self.ccounter}".zfill(self.fcounter_zfill)
-        
         self.progressbar.setMaximum(int(config.timestamp_count))
         self.counter_finalval.display(int(config.total_runs))
-        
+            # Check if file already exists
         while True:
             myfile = Path(self.filename+self.ccounter_label+self.file_extension)
             if myfile.is_file():
@@ -79,20 +80,26 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                 self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
             else:
                 break
-        
         self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
         
         # Help
-        self.actionCounts.triggered.connect(self.countsHelp)
-        self.actionHistogram.triggered.connect(self.histogramHelp)
+        self.paramsUpdate()
+        
+    def runSelfTest(self):
+        """ TDC self test, mainly for debugging
+        """
+        self.TDC.configureSelfTest(3, 20, 50, 5000)
     
     def saveFile(self):
+        """ Saves buffer data to filenameLabel
+        """
         with open(self.filenameLabel.text(),'w') as f:
             for i in range(len(self.TDC.timestamps)):
                 f.write("%s,%s\n" % (self.TDC.timestamps[i], self.TDC.channels[i]))
     
     def nextFile(self):
-        """ WIP, tuneable parameter (changes the binning)
+        """ Clears event buffer and opens next file to be saved. If this is the
+        last file to be created, stop updating
         """
         if self.ccounter < int(config.total_runs):
             self.ccounter += 1
@@ -106,18 +113,10 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         else:
             self.timer.stop()
             self.htimer.stop()  
-        
-    def countsHelp(self):
-        cHelp = QtWidgets.QMessageBox.question()
-        cHelp.setText("Counts tab help")
-        cHelp.setInformativeText("nice")
-    
-    def histogramHelp(self):
-        print("nice")
     
     def changeBinning(self,index):
         """ Change binning size. Options are:
-        0: 30ms, 1:50ms, 2:100ms, 3:200ms
+        0: 30ms, 1:50ms, 2:100ms, 3:200ms, 4:1s
         """
         if index==0:
             self.bin = 30
@@ -127,6 +126,8 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.bin = 100
         elif index==3:
             self.bin = 200
+        elif index==4:
+            self.bin = 1000
         else:
             pass
         self.timer.setInterval(self.bin)
@@ -145,15 +146,15 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         """ TDC input impedance (50 or 1000)
         """
         if self.input50btn.isChecked():
-#            print("cincuenta")
             self.TDC.switchTermination(True)
         elif self.input1000btn.isChecked():
-#            print("mil")
             self.TDC.switchTermination(False)
         else:
             pass
     
     def refreshHistVals(self):
+        """ Refresh histogram values
+        """
         bincount = int(self.lineEdit_bincount.text())
         binwidth = int(self.lineEdit_binwidth.text())
         exptime = int(self.lineEdit_exptime.text())
@@ -161,36 +162,24 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.TDC.setHistogramParams(bincount,binwidth)
     
     def paramsUpdate(self):
-        """ Placeholder func
+        """ Add initial config. params.
         """
-        if self.selftest_check.isChecked():
-            try:
-                self.ch
-            except:
-                self.ch = np.random.randint(1,6) #3
-            self.sp = np.random.randint(3,5) #4
-            self.br = np.random.randint(3,6) #3
-            self.ds = np.random.randint(8,12) #10
-            
-            channels = QtWidgets.QListWidgetItem("Channels: "+str(self.TDC.getChannel(self.ch)))
-            signal_period = QtWidgets.QListWidgetItem("Signal period: "+str(self.sp*20)+" ns")
-            burst = QtWidgets.QListWidgetItem("Number of bursts: "+str(self.br))
-            distance = QtWidgets.QListWidgetItem("Duty cycle: "+str(80*self.ds)+" ns")
-            self.paramsList.addItem(channels)
-            self.paramsList.addItem(signal_period)
-            self.paramsList.addItem(burst)
-            self.paramsList.addItem(distance)
-        else:
-            self.paramsList.clear()
-        
-    def runSelfTest(self):
-        self.TDC.selfTest(self.ch,self.sp,self.br,self.ds)
-        
-    def checkLastValue(self, d, default=None):
-        rev = (len(d) - idx for idx, item in enumerate(reversed(d), 1) if item)
-        return next(rev, default)
+        channels = QtWidgets.QListWidgetItem("Channels: "+str(self.TDC.getChannel(self.ch)))
+        buffer = QtWidgets.QListWidgetItem("Buffer size: "+str(self.TDC.timestamp_count))
+        nfiles = QtWidgets.QListWidgetItem("Total files: "+str(self.total_runs))
+        blank = QtWidgets.QListWidgetItem("   ")
+        pth_m = QtWidgets.QListWidgetItem("Current working path: ")
+        pth = QtWidgets.QListWidgetItem(getcwd())
+        self.paramsList.addItem(channels)
+        self.paramsList.addItem(buffer)
+        self.paramsList.addItem(nfiles)
+        self.paramsList.addItem(blank)
+        self.paramsList.addItem(pth_m)
+        self.paramsList.addItem(pth)
     
     def initHistPlot(self):
+        """ Initializes histogram plot
+        """
         if self.histBox.isChecked:
             channelA = self.chanAbox.currentIndex()
             channelB = self.chanBbox.currentIndex()            
@@ -206,14 +195,14 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.hcurve = self.hfigure.plot()
         self.hdata = np.array(self.TDC.hist)
         self.hpeak = max(set(self.hdata))
-#        max_xval = int(min([(self.checkLastValue(self.hdata,len(self.hdata))+len(self.hdata)/15),
-#                        len(self.hdata)]))
         self.hbins = np.linspace(1,self.TDC.bincount,self.TDC.bincount)*self.TDC.bins2ns.value
         self.hcurve.setData(x=self.hbins, y=self.hdata,
                             fillLevel=0, brush=(0,0,255,150))
         self.hfigure.setRange(yRange=[0,self.hpeak])
         
     def updateHistPlot(self):
+        """ Histogram updater
+        """
         if self.histBox.isChecked:
             channelA = self.chanAbox.currentIndex()
             channelB = self.chanBbox.currentIndex()            
@@ -232,6 +221,8 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                             fillLevel=0, brush=(0,0,255,150))
         
     def initCountsPlot(self):
+        """ Initializes counts plot
+        """
         self.startTime = pg.ptime.time()
         self.chunkSize = 100
         self.maxChunks = 6
@@ -257,10 +248,9 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.TDC.getLastTimestamps(True)
         
     def getCounts(self):
-        """ Obtains cumulative number counts for given binning size for 
-        every channel each time it's called. Used to update counts plot.
+        """ Read counts from buffer, integrate acoording to binning
+        Outputs integrated value
         """
-        
         test = True
         if test:
             self.TDC.getLastTimestamps()
@@ -273,7 +263,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                 self.progressbar.setValue(valid)
             else:
                 # Save a new file
-                self.saveFile()
+#                self.saveFile()
                 self.nextFile()
                 
         else:
@@ -292,7 +282,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.vtimestamps = timestamps[:valid]
             self.vchannels = channels[:valid]
             
-        all_channels = set(self.vchannels)
+        all_channels = self.TDC.getChannel(self.ch) #set(self.vchannels)
         counts = [self.vtimestamps[np.where(self.vchannels==
                                             list(all_channels)[i])] for i in range(len(all_channels))]
         # Find counts in binsize
@@ -302,6 +292,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
         # Clicks counter (exec time < 1ms in general)
         for channeltag in counts:
+            
             t = next((i for i in channeltag if i-channeltag[0]> binning),
                  None)
             try:
@@ -309,6 +300,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                 # Per channel clicks
                 self.lasttag.append(t)
             except:
+                self.datacount.append(0)
                 pass
         # Total clicks
         tt = next((i for i in self.vtimestamps if i-self.vtimestamps[0] > binning),
@@ -318,8 +310,10 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             self.lasttag.append(tt)
         except:
             pass
-
+        
     def updateCountsPlot(self):
+        """ Counts updater
+        """
         self.getCounts()
         now = pg.ptime.time()
         for i in range(self.num_plots):
@@ -358,7 +352,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.updateHistPlot()
     
     def connectionTest(self):
-        """ TDC connection test
+        """ TDC initial connection test
         """
         if not self.TDC.connection:
             choice = QtWidgets.QMessageBox.question(self, "Connection Fail",
@@ -368,10 +362,6 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             if choice == QtWidgets.QMessageBox.Yes:
                 self.TDC = TDC()
                 self.connectionTest()
-            else:
-                error_dialogue = QtWidgets.QErrorMessage()
-                error_dialogue.showMessage("""Restart the application and 
-                                           try again.""")
         else:
             self.id800_led.setPixmap(QtGui.QPixmap("icons/green-led-on.png"))
     
@@ -381,6 +371,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                          quit_msg, QtGui.QMessageBox.Yes, QtGui.QMessageBox.No)
     
         if reply == QtGui.QMessageBox.Yes:
+            print(">>> Closing... ", end="")
             self.TDC.close()
             event.accept()
         else:
