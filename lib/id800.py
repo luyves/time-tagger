@@ -72,6 +72,10 @@ class TDC:
         self.toosmall = c_int32()
         self.datacount = c_int32()
         self.hexpTime = c_int32()
+        # Filewriting
+#        self.dll_lib.TDC_writeTimestamps.argtypes = 
+#        self.dll_lib.TDC_writeTimestamps.restype = 
+        
         
     def close(self):
         rs = self.dll_lib.TDC_deInit()
@@ -156,6 +160,15 @@ class TDC:
         for item in self.channels:
             channelfile.write("%s\n" % item)
         channelfile.close()
+    
+    def writeTimestamps(self,filename=None):
+        if not filename:
+            # Stop writing to file
+            self.dll_lib.TDC_writeTimestamps()
+        else:
+            # Start writing to file
+            print("Opening file...")
+            self.dll_lib.TDC_writeTimestamps(str.encode(filename),c_int(1))
         
     def setHistogramParams(self,bincount=0,binwidth=0):
         self.dll_lib.TDC_clearAllHistograms()

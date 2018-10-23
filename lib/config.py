@@ -21,10 +21,15 @@ Recomiendo guardar los datos tomando en cuenta que incluyan lo siguiente:
 + Iniciales de quien realiza el experimento (e.g. 'LYV')
 + La extensión de archivo. Inicialmente y para archivos medianos, usar '.bin' o '.dat' puede funcionar bien. Sin embargo, a medida que se diseñen experimentos que generen muchos más datos, recomiendo acercarse a utilizar HDF5 (para todo lo que necesiten saber al respecto: https://bit.ly/2uUWltH)
 
-El programa asigna la fecha actual y el índice (i.e. el número) de experimento de manera automática. Uno puede verificar el formato del nombre de archivo con el que se guardará en la ventana princial junto a la etiqueta de 'Save as'.
+El programa asigna la fecha actual (y la hora con minutos) de experimento de manera automática. Uno puede verificar el formato del nombre de archivo con el que se guardará en la ventana princial junto a la etiqueta de 'Save as'.
 
-Un nombre de archivo adecuado podría ser '180724_MOT_FWM_LYV_001.dat'.
+Un nombre de archivo adecuado podría ser '180819-1024_MOT_FWM_LYV.dat'.
+
+Hay dos maneras de generar archivos de datos de acuerdo al parámetro <cont> (de "continouous"):
++ Un sólo archivo, sin límite superior de eventos registrados. (cont=True)
++ Múltiples archivos con <timestamp_count> eventos en cada uno. (cont=False)
 """
+cont = True
 filename = 'G2L_APDs_' # CC for 'Classical Correlations'
 file_extension = '.bin'
-total_runs = '20' # total number of data files to be created.
+total_runs = '20' # total number of data files to be created; irrelevant if cont=True

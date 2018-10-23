@@ -24,11 +24,8 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.setupUi(self)
         self.statusbar.showMessage("No connection established")
         self.TDC = TDC()
-        self.connectionTest()
-        
-        # Debugging
-#        self.runSelfTest()
-                
+#        self.connectionTest()
+
         # Channelmask
         self.ch = 3
         self.num_plots = np.shape(self.TDC.getChannel(self.ch))[0] + 1 # +1 for total
@@ -61,7 +58,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         
         # Data saving
         self.file_extension = config.file_extension
-        self.filename = strftime('%y%m%d')+'_'+config.filename
+        self.filename = strftime('%y%m%d')+'-'+strftime('%H%M')+'_'+config.filename
         self.total_runs = config.total_runs
         self.runButton.clicked.connect(self.saveFile)
         self.runButton.clicked.connect(self.nextFile)
@@ -75,13 +72,23 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
             # Check if file already exists
         while True:
             myfile = Path(self.filename+self.ccounter_label+self.file_extension)
+            myfile = Path(self.filename+self.file_extension)
             if myfile.is_file():
                 self.ccounter_true += 1
-                self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
+#                self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
             else:
                 break
-        self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
-        
+#        self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
+        self.filenameLabel.setText(self.filename+self.file_extension)
+                
+        # Write to file
+        self.cont = config.cont
+        if not isinstance(self.cont,bool):
+            self.cont = False
+        if self.cont:
+            self.runButton.setText("Close")
+            self.TDC.writeTimestamps(self.filenameLabel.text())
+                
         # Help
         self.paramsUpdate()
         
@@ -93,26 +100,31 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
     def saveFile(self):
         """ Saves buffer data to filenameLabel
         """
-        with open(self.filenameLabel.text(),'w') as f:
-            for i in range(len(self.TDC.timestamps)):
-                f.write("%s,%s\n" % (self.TDC.timestamps[i], self.TDC.channels[i]))
+        if not self.cont:
+            with open(self.filenameLabel.text(),'w') as f:
+                for i in range(len(self.TDC.timestamps)):
+                    f.write("%s,%s\n" % (self.TDC.timestamps[i], self.TDC.channels[i]))
+        else:
+            self.TDC.writeTimestamps()
+
     
     def nextFile(self):
         """ Clears event buffer and opens next file to be saved. If this is the
         last file to be created, stop updating
         """
-        if self.ccounter < int(config.total_runs):
-            self.ccounter += 1
-            self.ccounter_true += 1
-            self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
-            self.counter_currentval.display(self.ccounter)
-            self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
-            self.TDC.getLastTimestamps(reset=True)
-            self.progressbar.setValue(0)
-            print(self.filenameLabel.text())
-        else:
-            self.timer.stop()
-            self.htimer.stop()  
+        if not self.cont:
+            if self.ccounter < int(config.total_runs):
+                self.ccounter += 1
+                self.ccounter_true += 1
+                self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
+                self.counter_currentval.display(self.ccounter)
+                self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
+                self.TDC.getLastTimestamps(reset=True)
+                self.progressbar.setValue(0)
+                print(self.filenameLabel.text())
+            else:
+                self.timer.stop()
+                self.htimer.stop()
     
     def changeBinning(self,index):
         """ Change binning size. Options are:
@@ -263,8 +275,9 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                 self.progressbar.setValue(valid)
             else:
                 # Save a new file
-#                self.saveFile()
-                self.nextFile()
+                if not self.cont:
+                    self.saveFile()
+                    self.nextFile()
                 
         else:
             # for debugging

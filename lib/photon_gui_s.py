@@ -2,7 +2,7 @@
 
 # Form implementation generated from reading ui file 'photon_gui_s.ui'
 #
-# Created by: PyQt5 UI code generator 5.9
+# Created by: PyQt5 UI code generator 5.9.2
 #
 # WARNING! All changes made in this file will be lost!
 
@@ -50,27 +50,6 @@ class Ui_photons(object):
         self.verticalLayout_2.addLayout(self.horizontalLayout_4)
         self.horizontalLayout_3 = QtWidgets.QHBoxLayout()
         self.horizontalLayout_3.setObjectName("horizontalLayout_3")
-        self.labjack_led = QtWidgets.QLabel(self.connectionBox)
-        sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.labjack_led.sizePolicy().hasHeightForWidth())
-        self.labjack_led.setSizePolicy(sizePolicy)
-        self.labjack_led.setMinimumSize(QtCore.QSize(21, 0))
-        font = QtGui.QFont()
-        font.setPointSize(10)
-        font.setBold(False)
-        font.setWeight(50)
-        self.labjack_led.setFont(font)
-        self.labjack_led.setFrameShape(QtWidgets.QFrame.NoFrame)
-        self.labjack_led.setText("")
-        self.labjack_led.setPixmap(QtGui.QPixmap("icons/led-red-on.png"))
-        self.labjack_led.setScaledContents(True)
-        self.labjack_led.setObjectName("labjack_led")
-        self.horizontalLayout_3.addWidget(self.labjack_led)
-        self.labjack_label = QtWidgets.QLabel(self.connectionBox)
-        self.labjack_label.setObjectName("labjack_label")
-        self.horizontalLayout_3.addWidget(self.labjack_label)
         self.verticalLayout_2.addLayout(self.horizontalLayout_3)
         self.horizontalLayout_5.addWidget(self.connectionBox)
         self.verticalLayout = QtWidgets.QVBoxLayout()
@@ -547,7 +526,6 @@ class Ui_photons(object):
         photons.setWindowTitle(_translate("photons", "photons"))
         self.connectionBox.setTitle(_translate("photons", "Connection"))
         self.id800_label.setText(_translate("photons", "ID800"))
-        self.labjack_label.setText(_translate("photons", "LabJack"))
         self.corrida_label.setText(_translate("photons", "Progress"))
         self.progressbar.setFormat(_translate("photons", "%v/%m"))
         self.exp_label.setToolTip(_translate("photons", "File will be saved with this name"))
