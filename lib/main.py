@@ -263,7 +263,15 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.counts_plot_names = ['Channel {}'.format(i) for i in all_channels]
         self.counts_plot_names.append("Global")
         self.figures[-1].setLabel('bottom','Time', 's')
-        
+        txt = 'hola'
+        html='<div style="text-align: center"><span style="color: #FF0; font-size: 30pt;">'+txt+'</span></div>'
+        self.text0 = pg.TextItem(html = html, anchor=(-0.3,0.5), border='w', fill=(0, 0, 255, 100))
+        self.p0.addItem(self.text0)
+        self.text0.setPos(-3, 0)
+        self.text1 = pg.TextItem(html = html, anchor=(-0.3,0.5), border='w', fill=(0, 0, 255, 100))
+        self.p1.addItem(self.text1)
+        self.text1.setPos(-3, 0)
+
         self.TDC.getLastTimestamps(True)
         
     def getCounts(self):
@@ -360,11 +368,19 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         for i in range(self.num_plots):
             self.data[i][k+1,0] = now-self.startTime
             try:
-                self.data[i][k+1,1] = self.datacount[i]
+                self.datacount[i] = 10*np.random.rand()
+                self.data[i][k+1,1] = self.datacount[i]                
             except:
                 self.data[i][k+1,1] = 0
             self.curve[i].setData(x=self.data[i][:k+2,0],y=self.data[i][:k+2,1],
                       pen=self.colors[i%len(self.colors)],pensize=3)
+        def setHTML(txt,size=30):
+            return '<div style="text-align: center"><span style="color: #FF0; font-size:'+str(size)+'pt;">'+txt+'</span></div>'
+        size=40
+        self.text0.setHtml(setHTML(str(int(self.datacount[0])),40))
+        self.text0.setPos(-3,0)
+        self.text1.setHtml(setHTML(str(int(self.datacount[1])),40))
+        self.text1.setPos(-3,0)
         self.ptr += 1
     
     def update(self):
