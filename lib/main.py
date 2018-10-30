@@ -14,7 +14,7 @@ import sys
 import config
 from os import getcwd
 from time import strftime
-from id800 import TDC
+from hunahpy import TDC
 from pathlib import Path
 from photon_gui_s import Ui_photons
 
@@ -24,7 +24,7 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.setupUi(self)
         self.statusbar.showMessage("No connection established")
         self.TDC = TDC()
-#        self.connectionTest()
+        self.connectionTest()
 
         # Channelmask
         self.ch = 3
@@ -70,27 +70,28 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         self.progressbar.setMaximum(int(config.timestamp_count))
         self.counter_finalval.display(int(config.total_runs))
             # Check if file already exists
+        self.filenameLabel.setText(self.filename+self.file_extension)
+        self.datapath = getcwd()[:-3]+'data\\'+self.filenameLabel.text()
+        
         while True:
-            myfile = Path(self.filename+self.ccounter_label+self.file_extension)
-            myfile = Path(self.filename+self.file_extension)
+            myfile = Path(self.datapath)
             if myfile.is_file():
                 self.ccounter_true += 1
-#                self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
             else:
                 break
-#        self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
-        self.filenameLabel.setText(self.filename+self.file_extension)
-                
+
         # Write to file
         self.cont = config.cont
         if not isinstance(self.cont,bool):
             self.cont = False
         if self.cont:
             self.runButton.setText("Close")
-            self.TDC.writeTimestamps(self.filenameLabel.text())
+            print(self.datapath)
+            self.TDC.writeTimestamps(self.datapath,binary=False)
+            self.counter_finalval.display(int(1))
                 
         # Help
-        self.paramsUpdate()
+        self.paramsUpdate()        
         
     def runSelfTest(self):
         """ TDC self test, mainly for debugging
@@ -101,7 +102,8 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
         """ Saves buffer data to filenameLabel
         """
         if not self.cont:
-            with open(self.filenameLabel.text(),'w') as f:
+            print(self.datapath)
+            with open(self.datapath,'w') as f:
                 for i in range(len(self.TDC.timestamps)):
                     f.write("%s,%s\n" % (self.TDC.timestamps[i], self.TDC.channels[i]))
         else:
@@ -118,13 +120,18 @@ class AppWindow(QtWidgets.QMainWindow,Ui_photons):
                 self.ccounter_true += 1
                 self.ccounter_label = f"{self.ccounter_true}".zfill(self.fcounter_zfill)
                 self.counter_currentval.display(self.ccounter)
-                self.filenameLabel.setText(self.filename+self.ccounter_label+self.file_extension)
+                self.filename = strftime('%y%m%d')+'-'+strftime('%H%M')+'_'+config.filename
+                self.filenameLabel.setText(self.filename+self.file_extension)
                 self.TDC.getLastTimestamps(reset=True)
                 self.progressbar.setValue(0)
                 print(self.filenameLabel.text())
             else:
                 self.timer.stop()
                 self.htimer.stop()
+        else:
+            self.filename = strftime('%y%m%d')+'-'+strftime('%H%M')+'_'+config.filename
+            self.filenameLabel.setText(self.filename+self.file_extension)
+            self.datapath = getcwd()[:-3]+'data\\'+self.filenameLabel.text()
     
     def changeBinning(self,index):
         """ Change binning size. Options are:
